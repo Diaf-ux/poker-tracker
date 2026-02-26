@@ -79,15 +79,39 @@ input:focus { border-color: var(--gold); }
 .rank-1 td:first-child { color: #ffd700; }
 .rank-2 td:first-child { color: #c0c0c0; }
 .rank-3 td:first-child { color: #cd7f32; }
-.history-card { background: #0f2d1a; border: 1px solid var(--card-border); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+/* HISTORY CARDS */
+.history-card { background: #0f2d1a; border: 1.5px solid var(--card-border); border-radius: 12px; padding: 14px; margin-bottom: 12px; transition: border-color 0.2s; }
+.history-card.selected { border-color: var(--gold); }
+.history-card.closed { opacity: 0.65; }
 .history-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; gap: 6px; }
+.history-card-left { display: flex; align-items: flex-start; gap: 10px; flex: 1; min-width: 0; }
+.game-checkbox { width: 20px; height: 20px; min-width: 20px; accent-color: var(--gold); cursor: pointer; margin-top: 2px; }
 .history-card-title { font-weight: 700; color: var(--gold); font-size: 0.95rem; }
-.history-card-date { font-size: 0.75rem; color: var(--text-muted); }
+.history-card-date { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+.history-card-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+.status-badge { font-size: 0.72rem; font-weight: 700; padding: 3px 9px; border-radius: 20px; cursor: pointer; white-space: nowrap; border: none; }
+.status-open { background: #3a1a0a; color: #f0a040; border: 1px solid #a06020; }
+.status-closed { background: #0a2a14; color: #60e080; border: 1px solid #2d6040; }
+.delete-game-btn { background: none; border: 1px solid #3a2020; color: var(--red); border-radius: 6px; padding: 4px 9px; font-size: 0.75rem; cursor: pointer; white-space: nowrap; }
 .history-mini-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
 .history-mini-table th { color: var(--text-muted); padding: 4px 7px; border-bottom: 1px solid var(--card-border); }
 .history-mini-table td { padding: 5px 7px; border-bottom: 1px solid #1a3a28; }
 .history-mini-table tr:last-child td { border: none; }
-.delete-game-btn { background: none; border: 1px solid #3a2020; color: var(--red); border-radius: 6px; padding: 4px 9px; font-size: 0.75rem; cursor: pointer; white-space: nowrap; }
+/* SUMMARY PANEL */
+.summary-panel { position: fixed; bottom: 0; left: 0; right: 0; z-index: 200; background: #0d2518; border-top: 2px solid var(--gold); padding: 14px 16px calc(14px + var(--safe-bottom)); transform: translateY(100%); transition: transform 0.3s ease; max-height: 60dvh; overflow-y: auto; }
+.summary-panel.visible { transform: translateY(0); }
+.summary-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.summary-panel-title { color: var(--gold); font-weight: 700; font-size: 1rem; }
+.summary-close { background: none; border: none; color: var(--text-muted); font-size: 1.4rem; cursor: pointer; padding: 0 4px; }
+.summary-tx { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; padding: 10px 13px; margin-bottom: 8px; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.summary-tx .arrow { color: var(--gold); }
+.summary-tx .amount { margin-left: auto; font-weight: 700; color: var(--gold); }
+.summary-empty { text-align: center; color: #60e080; padding: 12px; font-size: 0.9rem; }
+.summary-select-hint { font-size: 0.78rem; color: var(--text-muted); text-align: center; padding: 8px 0 4px; }
+.history-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; gap: 8px; }
+.history-toolbar-left { font-size: 0.82rem; color: var(--text-muted); }
+.btn-summary { background: var(--gold); color: #1a1a00; border: none; border-radius: 10px; padding: 9px 16px; font-size: 0.85rem; font-weight: 700; cursor: pointer; min-height: 38px; }
+.btn-summary:disabled { opacity: 0.4; cursor: default; }
 .empty-state { text-align: center; color: var(--text-muted); padding: 36px 0; font-size: 0.92rem; }
 .divider { height: 1px; background: var(--card-border); margin: 14px 0; }
 .badge { display: inline-block; padding: 2px 7px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; background: var(--green-dark); color: var(--gold); margin-left: 6px; }
@@ -101,7 +125,7 @@ input:focus { border-color: var(--gold); }
 .stat-card { background: #0f2d1a; border: 1px solid var(--card-border); border-radius: 10px; padding: 12px; text-align: center; }
 .stat-val { font-size: 1.5rem; font-weight: 700; color: var(--gold); }
 .stat-label { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
-.tg-bottom-spacer { height: 80px; }
+.tg-bottom-spacer { height: 100px; }
 .loading { text-align: center; color: var(--text-muted); padding: 24px; font-size: 0.9rem; }
 .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--card-border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -109,6 +133,7 @@ input:focus { border-color: var(--gold); }
 </head>
 <body>
 
+<!-- AUTH -->
 <div id="page-auth" class="page">
   <div class="auth-box">
     <div style="font-size:3rem;margin-bottom:12px">🃏</div>
@@ -122,6 +147,7 @@ input:focus { border-color: var(--gold); }
   </div>
 </div>
 
+<!-- SETUP -->
 <div id="page-setup" class="page">
   <h1>🃏 Покер</h1>
   <p class="subtitle">Трекер фишек · История · Рейтинг</p>
@@ -153,11 +179,19 @@ input:focus { border-color: var(--gold); }
     <div class="section"><h2>📊 Статистика</h2><div id="stats-content"></div></div>
   </div>
   <div id="tab-history" class="tab-content" style="display:none;padding-top:14px">
-    <div class="section"><h2>📚 История игр</h2><div id="history-content"></div></div>
+    <div class="section">
+      <h2>📚 История игр</h2>
+      <div class="history-toolbar">
+        <span class="history-toolbar-left" id="selected-count-label"></span>
+        <button class="btn-summary" id="btn-show-summary" onclick="showSummaryPanel()" disabled>💰 Итог по выбранным</button>
+      </div>
+      <div id="history-content"></div>
+    </div>
   </div>
   <div class="tg-bottom-spacer"></div>
 </div>
 
+<!-- GAME -->
 <div id="page-game" class="page">
   <h1>🃏 Идёт игра</h1>
   <p class="subtitle" id="game-subtitle"></p>
@@ -169,6 +203,7 @@ input:focus { border-color: var(--gold); }
   <div class="tg-bottom-spacer"></div>
 </div>
 
+<!-- RESULT -->
 <div id="page-result" class="page">
   <h1>🏆 Итоги</h1>
   <div style="max-width:600px;margin:0 auto;padding:0 12px">
@@ -203,6 +238,18 @@ input:focus { border-color: var(--gold); }
   <div class="tg-bottom-spacer"></div>
 </div>
 
+<!-- SUMMARY PANEL (fixed bottom) -->
+<div id="summary-panel" class="summary-panel">
+  <div style="max-width:600px;margin:0 auto">
+    <div class="summary-panel-header">
+      <span class="summary-panel-title">💰 Итог за вечер</span>
+      <button class="summary-close" onclick="hideSummaryPanel()">×</button>
+    </div>
+    <div id="summary-games-label" style="font-size:0.78rem;color:var(--text-muted);margin-bottom:10px"></div>
+    <div id="summary-content"></div>
+  </div>
+</div>
+
 <script>
 var SUPABASE_URL = 'https://vylimuuiwyzlwqrpsgrp.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_0SUpAeZT5ytMKz2k_sNLQg_ad0n6C9L';
@@ -227,6 +274,7 @@ function sbFetch(path, options) {
   });
 }
 
+// AUTH
 function checkPassword() {
   var val = document.getElementById('auth-input').value;
   if (val === APP_PASSWORD) {
@@ -252,8 +300,10 @@ function initApp() {
   }
 }
 
+// STATE
 var state = { players: [], chipsPerRub: 10, gameName: '' };
 
+// TABS
 function switchTab(tabId, el) {
   document.querySelectorAll('.tab-content').forEach(function(t) { t.style.display = 'none'; });
   document.querySelectorAll('.nav-tab').forEach(function(t) { t.classList.remove('active'); });
@@ -263,6 +313,7 @@ function switchTab(tabId, el) {
   if (tabId === 'tab-history') renderHistory();
 }
 
+// SETUP
 function initSetup() {
   if (document.getElementById('names-grid').children.length === 0) {
     addPlayerInput(''); addPlayerInput(''); addPlayerInput('');
@@ -313,6 +364,7 @@ function startGame() {
   renderGamePage();
 }
 
+// GAME
 function renderGamePage() {
   document.getElementById('game-subtitle').textContent = state.gameName + ' · 1₽ = ' + state.chipsPerRub + ' фишек';
   var grid = document.getElementById('players-grid');
@@ -363,6 +415,7 @@ function updateHistoryLog(i) {
     .map(function(h) { return '<div class="history-item">📋 ' + escHtml(h) + '</div>'; }).join('');
 }
 
+// FINAL
 function showFinalScreen() {
   showPage('page-result');
   document.getElementById('final-input-section').style.display = 'block';
@@ -375,7 +428,8 @@ function showFinalScreen() {
     var lbl = document.createElement('label');
     lbl.textContent = p.name;
     var inp = document.createElement('input');
-    inp.type = 'number'; inp.id = 'final-' + i; inp.value = p.currentChips; inp.min = 0; inp.setAttribute('inputmode','numeric');
+    inp.type = 'number'; inp.id = 'final-' + i; inp.value = p.currentChips; inp.min = 0;
+    inp.setAttribute('inputmode','numeric');
     inp.oninput = updateChipsSum;
     row.appendChild(lbl); row.appendChild(inp);
     container.appendChild(row);
@@ -452,13 +506,14 @@ function settleTx(idx) {
   if(tg&&tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
 }
 
+// SAVE
 function saveAndNewGame() {
   var btn = document.getElementById('save-btn');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Сохраняем...';
   sbFetch('games', {
     method: 'POST',
-    body: JSON.stringify({ name: state.gameName, date_str: formatDate(new Date()), chips_per_rub: state.chipsPerRub })
+    body: JSON.stringify({ name: state.gameName, date_str: formatDate(new Date()), chips_per_rub: state.chipsPerRub, is_closed: false })
   }).then(function(games) {
     var gameId = games[0].id;
     var playersData = state.players.map(function(p) {
@@ -476,6 +531,7 @@ function saveAndNewGame() {
   });
 }
 
+// LEADERBOARD
 function renderLeaderboard() {
   var lbDiv = document.getElementById('leaderboard-content');
   var statsDiv = document.getElementById('stats-content');
@@ -514,39 +570,172 @@ function renderLeaderboard() {
   });
 }
 
+// ===== HISTORY WITH CHECKBOXES & STATUS =====
+var _historyGames = [];  // кэш загруженных игр
+var _selectedGameIds = {};
+
 function renderHistory() {
   var div = document.getElementById('history-content');
   div.innerHTML = '<div class="loading"><span class="spinner"></span>Загрузка...</div>';
-  sbFetch('games?select=id,name,date_str,game_players(name,start_chips,final_chips,diff_rub)&order=created_at.desc').then(function(games) {
-    if (!games || !games.length) { div.innerHTML = '<div class="empty-state">📚 История пуста</div>'; return; }
-    div.innerHTML = games.map(function(g) {
-      var sorted = (g.game_players||[]).slice().sort(function(a,b){return b.diff_rub-a.diff_rub;});
-      return '<div class="history-card">' +
-        '<div class="history-card-header"><div><div class="history-card-title">🃏 '+escHtml(g.name)+'</div><div class="history-card-date">'+(g.date_str||'')+'</div></div>' +
-        '<button class="delete-game-btn" onclick="deleteGame('+g.id+')">🗑 Удалить</button></div>' +
-        '<table class="history-mini-table"><thead><tr><th>Игрок</th><th>Вложил</th><th>Итог</th><th>±₽</th></tr></thead><tbody>' +
-        sorted.map(function(p) {
-          var cls=p.diff_rub>0.005?'pos':p.diff_rub<-0.005?'neg':'zero';
-          var sign=p.diff_rub>0?'+':'';
-          return '<tr><td>'+escHtml(p.name)+'</td><td>'+p.start_chips+'</td><td>'+p.final_chips+'</td><td class="'+cls+'">'+sign+p.diff_rub.toFixed(2)+' ₽</td></tr>';
-        }).join('') + '</tbody></table></div>';
-    }).join('');
+  _selectedGameIds = {};
+  updateSelectedCount();
+  sbFetch('games?select=id,name,date_str,is_closed,game_players(name,start_chips,final_chips,diff_rub)&order=created_at.desc').then(function(games) {
+    _historyGames = games || [];
+    if (!_historyGames.length) { div.innerHTML = '<div class="empty-state">📚 История пуста</div>'; return; }
+    renderHistoryCards();
   }).catch(function() {
     div.innerHTML = '<div class="empty-state">❌ Ошибка загрузки</div>';
   });
 }
 
+function renderHistoryCards() {
+  var div = document.getElementById('history-content');
+  div.innerHTML = '';
+  _historyGames.forEach(function(g) {
+    var isClosed = !!g.is_closed;
+    var isSelected = !!_selectedGameIds[g.id];
+    var sorted = (g.game_players||[]).slice().sort(function(a,b){return b.diff_rub-a.diff_rub;});
+
+    var card = document.createElement('div');
+    card.className = 'history-card' + (isClosed ? ' closed' : '') + (isSelected ? ' selected' : '');
+    card.id = 'hcard-' + g.id;
+
+    var rowsHtml = sorted.map(function(p) {
+      var cls=p.diff_rub>0.005?'pos':p.diff_rub<-0.005?'neg':'zero';
+      var sign=p.diff_rub>0?'+':'';
+      return '<tr><td>'+escHtml(p.name)+'</td><td>'+p.start_chips+'</td><td>'+p.final_chips+'</td><td class="'+cls+'">'+sign+p.diff_rub.toFixed(2)+' ₽</td></tr>';
+    }).join('');
+
+    var statusLabel = isClosed ? '✅ Закрыта' : '⏳ Не закрыта';
+    var statusClass = isClosed ? 'status-badge status-closed' : 'status-badge status-open';
+
+    card.innerHTML =
+      '<div class="history-card-header">' +
+        '<div class="history-card-left">' +
+          '<input type="checkbox" class="game-checkbox" ' + (isSelected?'checked':'') + ' onchange="toggleGameSelect(' + g.id + ', this.checked)">' +
+          '<div>' +
+            '<div class="history-card-title">🃏 ' + escHtml(g.name) + '</div>' +
+            '<div class="history-card-date">' + (g.date_str||'') + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="history-card-right">' +
+          '<button class="' + statusClass + '" onclick="toggleGameClosed(' + g.id + ')">' + statusLabel + '</button>' +
+          '<button class="delete-game-btn" onclick="deleteGame(' + g.id + ')">🗑</button>' +
+        '</div>' +
+      '</div>' +
+      '<table class="history-mini-table"><thead><tr><th>Игрок</th><th>Вложил</th><th>Итог</th><th>±₽</th></tr></thead><tbody>' + rowsHtml + '</tbody></table>';
+
+    div.appendChild(card);
+  });
+}
+
+function toggleGameSelect(gameId, checked) {
+  if (checked) {
+    _selectedGameIds[gameId] = true;
+  } else {
+    delete _selectedGameIds[gameId];
+  }
+  // обновить класс карточки
+  var card = document.getElementById('hcard-' + gameId);
+  if (card) {
+    if (checked) card.classList.add('selected');
+    else card.classList.remove('selected');
+  }
+  updateSelectedCount();
+  // если панель открыта — обновляем её
+  if (document.getElementById('summary-panel').classList.contains('visible')) {
+    renderSummaryContent();
+  }
+}
+
+function updateSelectedCount() {
+  var ids = Object.keys(_selectedGameIds);
+  var label = document.getElementById('selected-count-label');
+  var btn = document.getElementById('btn-show-summary');
+  if (ids.length === 0) {
+    label.textContent = 'Отметь игры для подсчёта';
+    btn.disabled = true;
+  } else {
+    label.textContent = 'Выбрано: ' + ids.length;
+    btn.disabled = false;
+  }
+}
+
+function toggleGameClosed(gameId) {
+  var game = _historyGames.find(function(g) { return g.id === gameId; });
+  if (!game) return;
+  var newVal = !game.is_closed;
+  sbFetch('games?id=eq.' + gameId, {
+    method: 'PATCH',
+    body: JSON.stringify({ is_closed: newVal }),
+    prefer: 'return=minimal'
+  }).then(function() {
+    game.is_closed = newVal;
+    renderHistoryCards();
+    if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+  }).catch(function() { showAlert('Ошибка обновления статуса'); });
+}
+
+// SUMMARY PANEL
+function showSummaryPanel() {
+  renderSummaryContent();
+  document.getElementById('summary-panel').classList.add('visible');
+  if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+}
+
+function hideSummaryPanel() {
+  document.getElementById('summary-panel').classList.remove('visible');
+}
+
+function renderSummaryContent() {
+  var ids = Object.keys(_selectedGameIds).map(Number);
+  var selectedGames = _historyGames.filter(function(g) { return ids.indexOf(g.id) !== -1; });
+
+  document.getElementById('summary-games-label').textContent =
+    'Игры: ' + selectedGames.map(function(g){ return escHtml(g.name); }).join(', ');
+
+  // Суммируем diff_rub по каждому игроку по всем выбранным играм
+  var agg = {};
+  selectedGames.forEach(function(g) {
+    (g.game_players||[]).forEach(function(p) {
+      if (!agg[p.name]) agg[p.name] = { name: p.name, balance: 0 };
+      agg[p.name].balance += p.diff_rub;
+    });
+  });
+
+  var balances = Object.values(agg);
+  var txs = minimizeTransactions(balances.map(function(b) { return { name: b.name, balance: b.balance }; }));
+
+  var content = document.getElementById('summary-content');
+  if (!txs.length) {
+    content.innerHTML = '<div class="summary-empty">🎉 Все в расчёте!</div>';
+  } else {
+    content.innerHTML = txs.map(function(t) {
+      return '<div class="summary-tx"><span>💸 <b>' + escHtml(t.from) + '</b></span><span class="arrow">→</span><span><b>' + escHtml(t.to) + '</b></span><span class="amount">' + t.amount.toFixed(2) + ' ₽</span></div>';
+    }).join('');
+  }
+}
+
+// DELETE
 function deleteGame(gameId) {
   if (!confirm('Удалить эту игру?')) return;
   sbFetch('games?id=eq.' + gameId, { method: 'DELETE', prefer: 'return=minimal' }).then(function() {
-    renderHistory();
+    delete _selectedGameIds[gameId];
+    _historyGames = _historyGames.filter(function(g) { return g.id !== gameId; });
+    renderHistoryCards();
+    updateSelectedCount();
+    if (_historyGames.length === 0) {
+      document.getElementById('history-content').innerHTML = '<div class="empty-state">📚 История пуста</div>';
+    }
   }).catch(function() { showAlert('Ошибка удаления'); });
 }
 
+// UTILS
 function showPage(id) {
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
   document.getElementById(id).classList.add('active');
   window.scrollTo(0,0);
+  hideSummaryPanel();
 }
 function goBackSetup() { showPage('page-setup'); }
 function newGame() {
