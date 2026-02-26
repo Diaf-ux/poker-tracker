@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Покер с друзьями</title>
+<title>PokerApp</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -13,93 +13,45 @@
     --bg: #0f2d1a; --card-bg: #163824; --card-border: #2d6040;
     --text: #e8f5ee; --text-muted: #8bb89a;
     --red: #e05050; --red-dark: #b03030; --blue: #4090d0;
-    --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
   }
-  html, body {
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    min-height: 100dvh;
-    overscroll-behavior: none;
-  }
+  html, body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; min-height: 100dvh; overscroll-behavior: none; }
   body { padding-bottom: calc(16px + var(--safe-bottom)); }
-
   h1 { text-align: center; padding: 16px 16px 6px; font-size: 1.6rem; color: var(--gold); letter-spacing: 1px; text-shadow: 0 0 20px rgba(240,192,64,0.4); }
   .subtitle { text-align: center; color: var(--text-muted); font-size: 0.82rem; margin-bottom: 16px; }
-
   .section { max-width: 600px; margin: 0 auto 16px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; padding: 16px; }
   .section h2 { color: var(--gold); font-size: 1rem; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
-
   label { display: block; font-size: 0.82rem; color: var(--text-muted); margin-bottom: 4px; }
-  input[type="text"], input[type="number"] {
-    width: 100%; background: #0f2d1a; border: 1px solid var(--card-border);
-    border-radius: 8px; color: var(--text); padding: 11px 14px;
-    font-size: 16px; /* prevents zoom on iOS */ outline: none; transition: border-color 0.2s;
-  }
+  input[type="text"], input[type="number"], input[type="password"] { width: 100%; background: #0f2d1a; border: 1px solid var(--card-border); border-radius: 8px; color: var(--text); padding: 11px 14px; font-size: 16px; outline: none; transition: border-color 0.2s; }
   input:focus { border-color: var(--gold); }
-
   .row { display: flex; gap: 10px; margin-bottom: 12px; }
   .row > div { flex: 1; }
-
-  .btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-    padding: 12px 20px; border: none; border-radius: 10px;
-    font-size: 0.95rem; font-weight: 600; cursor: pointer;
-    transition: transform 0.1s, filter 0.15s;
-    min-height: 44px; /* touch target */
-  }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 12px 20px; border: none; border-radius: 10px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: transform 0.1s, filter 0.15s; min-height: 44px; }
   .btn:active { transform: scale(0.96); filter: brightness(0.9); }
   .btn-gold { background: var(--gold); color: #1a1a00; }
   .btn-green { background: var(--green-light); color: white; }
-  .btn-green:hover { background: var(--green); }
   .btn-red { background: var(--red); color: white; }
   .btn-blue { background: var(--blue); color: white; }
   .btn-sm { padding: 9px 13px; font-size: 0.82rem; min-height: 38px; }
   .btn-full { width: 100%; }
-
-  /* NAV */
-  .nav-tabs {
-    display: flex; max-width: 600px; margin: 0 auto;
-    background: var(--card-bg); border-bottom: 2px solid var(--card-border);
-    position: sticky; top: 0; z-index: 100;
-  }
-  .nav-tab {
-    flex: 1; padding: 11px 4px; text-align: center; cursor: pointer;
-    font-size: 0.8rem; font-weight: 600; color: var(--text-muted);
-    border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.2s;
-    min-height: 44px; display: flex; align-items: center; justify-content: center;
-  }
+  .nav-tabs { display: flex; max-width: 600px; margin: 0 auto; background: var(--card-bg); border-bottom: 2px solid var(--card-border); position: sticky; top: 0; z-index: 100; }
+  .nav-tab { flex: 1; padding: 11px 4px; text-align: center; cursor: pointer; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.2s; min-height: 44px; display: flex; align-items: center; justify-content: center; }
   .nav-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
-
-  /* NAMES GRID */
   .names-grid { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
   .name-input-wrap { position: relative; }
   .name-input-wrap input { padding-right: 42px; }
-  .remove-btn {
-    position: absolute; right: 0; top: 0; height: 100%; width: 42px;
-    background: none; border: none; color: var(--red); cursor: pointer;
-    font-size: 1.3rem; display: flex; align-items: center; justify-content: center;
-  }
-
-  /* PAGES */
+  .remove-btn { position: absolute; right: 0; top: 0; height: 100%; width: 42px; background: none; border: none; color: var(--red); cursor: pointer; font-size: 1.3rem; display: flex; align-items: center; justify-content: center; }
   .page { display: none; }
   .page.active { display: block; }
-
-  /* PLAYERS GRID */
   .players-grid { display: flex; flex-direction: column; gap: 10px; max-width: 600px; margin: 0 auto 24px; padding: 0 12px; }
   .player-card { background: var(--card-bg); border: 1.5px solid var(--card-border); border-radius: 12px; padding: 14px; transition: border-color 0.3s; }
-  .player-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-  .player-name { font-size: 1.05rem; font-weight: 700; color: var(--gold); }
+  .player-name { font-size: 1.05rem; font-weight: 700; color: var(--gold); margin-bottom: 8px; }
   .player-chips-display { font-size: 0.9rem; color: var(--text-muted); line-height: 1.6; }
   .player-chips-display span { color: var(--text); font-weight: 600; }
   .player-actions { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
   .player-actions input { flex: 1; }
   .history-log { max-height: 90px; overflow-y: auto; margin-top: 8px; }
   .history-item { font-size: 0.73rem; color: var(--text-muted); padding: 2px 0; border-bottom: 1px solid #1e4a2c; }
-
-  /* RESULT */
   .result-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 0.88rem; }
   .result-table th { background: var(--green-dark); color: var(--gold); padding: 9px 10px; text-align: left; font-size: 0.78rem; }
   .result-table td { padding: 9px 10px; border-bottom: 1px solid var(--card-border); }
@@ -107,19 +59,12 @@
   .pos { color: #60e080; font-weight: 700; }
   .neg { color: var(--red); font-weight: 700; }
   .zero { color: var(--text-muted); }
-
   .transactions { list-style: none; }
-  .transactions li {
-    background: #0f2d1a; border: 1px solid var(--card-border); border-radius: 8px;
-    padding: 11px 13px; margin-bottom: 8px; font-size: 0.9rem;
-    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  }
+  .transactions li { background: #0f2d1a; border: 1px solid var(--card-border); border-radius: 8px; padding: 11px 13px; margin-bottom: 8px; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .transactions li .arrow { color: var(--gold); }
   .transactions li .amount { margin-left: auto; font-weight: 700; color: var(--gold); }
   .settled { opacity: 0.4; text-decoration: line-through; }
   .settle-btn { background: none; border: 1px solid var(--green-light); color: var(--green-light); border-radius: 6px; padding: 4px 9px; font-size: 0.75rem; cursor: pointer; min-height: 30px; }
-
-  /* LEADERBOARD */
   .leader-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
   .leader-table th { background: var(--green-dark); color: var(--gold); padding: 9px 10px; text-align: left; font-size: 0.78rem; }
   .leader-table td { padding: 9px 10px; border-bottom: 1px solid var(--card-border); }
@@ -127,18 +72,15 @@
   .rank-1 td:first-child { color: #ffd700; }
   .rank-2 td:first-child { color: #c0c0c0; }
   .rank-3 td:first-child { color: #cd7f32; }
-
-  /* HISTORY */
   .history-card { background: #0f2d1a; border: 1px solid var(--card-border); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
-  .history-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 6px; }
+  .history-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; gap: 6px; }
   .history-card-title { font-weight: 700; color: var(--gold); font-size: 0.95rem; }
   .history-card-date { font-size: 0.75rem; color: var(--text-muted); }
   .history-mini-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
   .history-mini-table th { color: var(--text-muted); padding: 4px 7px; border-bottom: 1px solid var(--card-border); }
   .history-mini-table td { padding: 5px 7px; border-bottom: 1px solid #1a3a28; }
   .history-mini-table tr:last-child td { border: none; }
-  .delete-game-btn { background: none; border: 1px solid #3a2020; color: var(--red); border-radius: 6px; padding: 4px 9px; font-size: 0.75rem; cursor: pointer; }
-
+  .delete-game-btn { background: none; border: 1px solid #3a2020; color: var(--red); border-radius: 6px; padding: 4px 9px; font-size: 0.75rem; cursor: pointer; white-space: nowrap; }
   .empty-state { text-align: center; color: var(--text-muted); padding: 36px 0; font-size: 0.92rem; }
   .divider { height: 1px; background: var(--card-border); margin: 14px 0; }
   .badge { display: inline-block; padding: 2px 7px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; background: var(--green-dark); color: var(--gold); margin-left: 6px; }
@@ -152,75 +94,68 @@
   .stat-card { background: #0f2d1a; border: 1px solid var(--card-border); border-radius: 10px; padding: 12px; text-align: center; }
   .stat-val { font-size: 1.5rem; font-weight: 700; color: var(--gold); }
   .stat-label { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
-
-  /* TG main button area compensation */
   .tg-bottom-spacer { height: 80px; }
+  .loading { text-align: center; color: var(--text-muted); padding: 24px; font-size: 0.9rem; }
+  .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--card-border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* PASSWORD SCREEN */
+  #page-auth { display: none; }
+  #page-auth.active { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+  .auth-box { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 32px 24px; width: 100%; max-width: 360px; text-align: center; }
+  .auth-box h2 { color: var(--gold); font-size: 1.3rem; margin-bottom: 8px; }
+  .auth-box p { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px; }
+  .auth-error { color: var(--red); font-size: 0.83rem; margin-top: 10px; min-height: 20px; }
 </style>
 </head>
 <body>
 
+<!-- ===== AUTH PAGE ===== -->
+<div id="page-auth" class="page">
+  <div class="auth-box">
+    <div style="font-size:3rem; margin-bottom:12px;">🃏</div>
+    <h2>Poker App</h2>
+    <p>Введи пароль для доступа</p>
+    <input type="password" id="auth-input" placeholder="Пароль" style="margin-bottom:12px; text-align:center; font-size:1.1rem; letter-spacing:4px;"
+      onkeydown="if(event.key==='Enter') checkPassword()">
+    <button class="btn btn-gold btn-full" onclick="checkPassword()">Войти</button>
+    <div class="auth-error" id="auth-error"></div>
+  </div>
+</div>
+
 <!-- ===== SETUP PAGE ===== -->
-<div id="page-setup" class="page active">
+<div id="page-setup" class="page">
   <h1>🃏 Покер</h1>
   <p class="subtitle">Трекер фишек · История · Рейтинг</p>
-
   <div class="nav-tabs">
     <div class="nav-tab active" onclick="switchTab('tab-setup', this)">⚙️ Игра</div>
     <div class="nav-tab" onclick="switchTab('tab-leaderboard', this)">🏆 Рейтинг</div>
     <div class="nav-tab" onclick="switchTab('tab-history', this)">📚 История</div>
   </div>
-
-  <!-- Tab: Setup -->
   <div id="tab-setup" class="tab-content" style="display:block; padding-top:14px;">
     <div class="section">
       <h2>⚙️ Настройки</h2>
       <div class="row">
-        <div>
-          <label>Фишек на старте</label>
-          <input type="number" id="chips-per-player" value="100" min="1" inputmode="numeric">
-        </div>
-        <div>
-          <label>Фишек = 1 руб</label>
-          <input type="number" id="chips-per-rub" value="10" min="1" step="0.01" inputmode="decimal">
-        </div>
+        <div><label>Фишек на старте</label><input type="number" id="chips-per-player" value="100" min="1" inputmode="numeric"></div>
+        <div><label>Фишек = 1 руб</label><input type="number" id="chips-per-rub" value="10" min="1" step="0.01" inputmode="decimal"></div>
       </div>
-      <div>
-        <label>Название игры</label>
-        <input type="text" id="game-name" placeholder="Напр: Пятница у Васи">
-      </div>
+      <div><label>Название игры</label><input type="text" id="game-name" placeholder="Напр: Пятница у Васи"></div>
     </div>
-
     <div class="section">
       <h2>👥 Игроки <span id="player-count-badge" class="badge">0</span></h2>
       <div id="names-grid" class="names-grid"></div>
       <button class="btn btn-green btn-full" onclick="addPlayerInput()">+ Добавить игрока</button>
     </div>
-
     <div style="max-width:600px; margin:0 auto 16px; padding:0 16px;">
-      <button class="btn btn-gold btn-full" style="font-size:1.05rem; padding:14px;" onclick="startGame()">
-        🎲 Начать игру
-      </button>
+      <button class="btn btn-gold btn-full" style="font-size:1.05rem; padding:14px;" onclick="startGame()">🎲 Начать игру</button>
     </div>
   </div>
-
-  <!-- Tab: Leaderboard -->
   <div id="tab-leaderboard" class="tab-content" style="display:none; padding-top:14px;">
-    <div class="section">
-      <h2>🏆 Рейтинг игроков</h2>
-      <div id="leaderboard-content"></div>
-    </div>
-    <div class="section">
-      <h2>📊 Статистика</h2>
-      <div id="stats-content"></div>
-    </div>
+    <div class="section"><h2>🏆 Рейтинг игроков</h2><div id="leaderboard-content"></div></div>
+    <div class="section"><h2>📊 Статистика</h2><div id="stats-content"></div></div>
   </div>
-
-  <!-- Tab: History -->
   <div id="tab-history" class="tab-content" style="display:none; padding-top:14px;">
-    <div class="section">
-      <h2>📚 История игр</h2>
-      <div id="history-content"></div>
-    </div>
+    <div class="section"><h2>📚 История игр</h2><div id="history-content"></div></div>
   </div>
   <div class="tg-bottom-spacer"></div>
 </div>
@@ -241,7 +176,6 @@
 <div id="page-result" class="page">
   <h1>🏆 Итоги</h1>
   <div style="max-width:600px; margin:0 auto; padding:0 12px;">
-
     <div class="section" id="final-input-section">
       <h2>🎰 Итоговые фишки</h2>
       <div class="alert">Пересчитайте фишки и введите финальное количество.</div>
@@ -249,7 +183,6 @@
       <div id="chips-sum-live" style="text-align:right; font-size:0.82rem; color:var(--text-muted); margin-bottom:10px;"></div>
       <button class="btn btn-gold btn-full" onclick="calculateResults()">📊 Рассчитать долги</button>
     </div>
-
     <div id="results-section" style="display:none;">
       <div class="section">
         <h2>📊 Результаты</h2>
@@ -264,7 +197,7 @@
         <ul class="transactions" id="transactions-list"></ul>
         <div class="divider"></div>
         <div class="btn-group">
-          <button class="btn btn-gold btn-full" onclick="saveAndNewGame()">💾 Сохранить и новая игра</button>
+          <button class="btn btn-gold btn-full" id="save-btn" onclick="saveAndNewGame()">💾 Сохранить и новая игра</button>
           <button class="btn btn-green btn-full" onclick="newGame()">🔄 Новая игра (без сохранения)</button>
           <button class="btn btn-blue btn-full" onclick="showFinalScreen()">✏️ Изменить фишки</button>
         </div>
@@ -275,20 +208,58 @@
 </div>
 
 <script>
-// ===== TELEGRAM INIT =====
-const tg = window.Telegram && window.Telegram.WebApp;
-if (tg) {
-  tg.ready();
-  tg.expand();
+// ===== SUPABASE CONFIG =====
+const SUPABASE_URL = 'https://vylimuuiwyzlwqrpsgrp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_0SUpAeZT5ytMKz2k_sNLQg_ad0n6C9L';
+const APP_PASSWORD = '2769allin'; 
+
+async function sbFetch(path, options = {}) {
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
+    ...options,
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': options.prefer || 'return=representation',
+      ...(options.headers || {})
+    }
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err);
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
 }
 
-// ===== STORAGE =====
-const STORAGE_KEY = 'poker_tracker_v2';
-function loadData() {
-  try { const d = localStorage.getItem(STORAGE_KEY); return d ? JSON.parse(d) : { games: [], players: {} }; }
-  catch(e) { return { games: [], players: {} }; }
+// ===== TELEGRAM =====
+const tg = window.Telegram && window.Telegram.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+
+// ===== AUTH =====
+const AUTH_KEY = 'poker_auth_v1';
+
+function checkPassword() {
+  const val = document.getElementById('auth-input').value;
+  if (val === APP_PASSWORD) {
+    localStorage.setItem(AUTH_KEY, '1');
+    showPage('page-setup');
+    initSetup();
+  } else {
+    document.getElementById('auth-error').textContent = '❌ Неверный пароль';
+    if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+  }
 }
-function saveData(data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+
+function initApp() {
+  if (localStorage.getItem(AUTH_KEY) === '1') {
+    showPage('page-setup');
+    initSetup();
+  } else {
+    showPage('page-auth');
+    setTimeout(() => document.getElementById('auth-input').focus(), 100);
+  }
+}
 
 // ===== STATE =====
 let state = { players: [], chipsPerRub: 10, gameName: '' };
@@ -304,14 +275,19 @@ function switchTab(tabId, el) {
 }
 
 // ===== SETUP =====
+function initSetup() {
+  if (document.getElementById('names-grid').children.length === 0) {
+    addPlayerInput(''); addPlayerInput(''); addPlayerInput('');
+  }
+}
+
 function addPlayerInput(name='') {
   const grid = document.getElementById('names-grid');
   const idx = grid.children.length;
   const wrap = document.createElement('div');
   wrap.className = 'name-input-wrap';
-  wrap.innerHTML = `
-    <input type="text" placeholder="Имя игрока ${idx+1}" value="${escHtml(name)}" oninput="updatePlayerCount()">
-    <button class="remove-btn" onclick="removePlayerInput(this)">×</button>`;
+  wrap.innerHTML = \`<input type="text" placeholder="Имя игрока \${idx+1}" value="\${escHtml(name)}" oninput="updatePlayerCount()">
+    <button class="remove-btn" onclick="removePlayerInput(this)">×</button>\`;
   grid.appendChild(wrap);
   updatePlayerCount();
   if (!name) setTimeout(() => wrap.querySelector('input').focus(), 50);
@@ -328,44 +304,31 @@ function startGame() {
   const chipsPerPlayer = parseInt(document.getElementById('chips-per-player').value) || 100;
   const chipsPerRub = parseFloat(document.getElementById('chips-per-rub').value) || 10;
   const gameName = document.getElementById('game-name').value.trim();
-
   if (names.length < 2) { showAlert('Добавьте хотя бы 2 игроков!'); return; }
   if (new Set(names).size !== names.length) { showAlert('Имена должны быть уникальными!'); return; }
-
   state.chipsPerRub = chipsPerRub;
   state.gameName = gameName || ('Игра ' + formatDate(new Date()));
-  state.players = names.map(name => ({
-    name, startChips: chipsPerPlayer, currentChips: chipsPerPlayer,
-    history: ['Старт: +' + chipsPerPlayer + ' фишек']
-  }));
-
+  state.players = names.map(name => ({ name, startChips: chipsPerPlayer, currentChips: chipsPerPlayer, history: ['Старт: +' + chipsPerPlayer] }));
   showPage('page-game');
   renderGamePage();
 }
 
-// ===== GAME PAGE =====
+// ===== GAME =====
 function renderGamePage() {
-  document.getElementById('game-subtitle').textContent =
-    state.gameName + ' · 1₽ = ' + state.chipsPerRub + ' фишек';
+  document.getElementById('game-subtitle').textContent = state.gameName + ' · 1₽ = ' + state.chipsPerRub + ' фишек';
   const grid = document.getElementById('players-grid');
   grid.innerHTML = '';
   state.players.forEach((p, i) => {
     const card = document.createElement('div');
     card.className = 'player-card'; card.id = 'pcard-' + i;
-    card.innerHTML = `
-      <div class="player-header"><div class="player-name">👤 ${escHtml(p.name)}</div></div>
-      <div class="player-chips-display">
-        Фишки: <span id="chips-${i}">${p.currentChips}</span> · ≈ <span id="rub-${i}">${(p.currentChips/state.chipsPerRub).toFixed(2)}</span> ₽
-      </div>
-      <div class="player-chips-display" style="font-size:0.78rem; color:#5a8a6a;">
-        Вложено: <span id="start-${i}">${p.startChips}</span> фишек
-      </div>
+    card.innerHTML = \`<div class="player-name">👤 \${escHtml(p.name)}</div>
+      <div class="player-chips-display">Фишки: <span id="chips-\${i}">\${p.currentChips}</span> · ≈ <span id="rub-\${i}">\${(p.currentChips/state.chipsPerRub).toFixed(2)}</span> ₽</div>
+      <div class="player-chips-display" style="font-size:0.78rem;color:#5a8a6a;">Вложено: <span id="start-\${i}">\${p.startChips}</span></div>
       <div class="player-actions">
-        <input type="number" id="add-input-${i}" placeholder="Докуп фишек" min="1" inputmode="numeric"
-          onkeydown="if(event.key==='Enter') addChips(${i})">
-        <button class="btn btn-green btn-sm" onclick="addChips(${i})">+ Докуп</button>
+        <input type="number" id="add-input-\${i}" placeholder="Докуп фишек" min="1" inputmode="numeric" onkeydown="if(event.key==='Enter') addChips(\${i})">
+        <button class="btn btn-green btn-sm" onclick="addChips(\${i})">+ Докуп</button>
       </div>
-      <div class="history-log" id="history-${i}"></div>`;
+      <div class="history-log" id="history-\${i}"></div>\`;
     grid.appendChild(card);
     updateHistoryLog(i);
   });
@@ -378,7 +341,7 @@ function addChips(idx) {
   const p = state.players[idx];
   p.currentChips += amount; p.startChips += amount;
   const t = new Date().toTimeString().slice(0,5);
-  p.history.push(t + ' Докуп: +' + amount + ' (вложено: ' + p.startChips + ')');
+  p.history.push(t + ' Докуп: +' + amount);
   document.getElementById('chips-' + idx).textContent = p.currentChips;
   document.getElementById('rub-' + idx).textContent = (p.currentChips/state.chipsPerRub).toFixed(2);
   document.getElementById('start-' + idx).textContent = p.startChips;
@@ -392,7 +355,7 @@ function addChips(idx) {
 
 function updateHistoryLog(i) {
   const log = document.getElementById('history-' + i);
-  if (log) log.innerHTML = state.players[i].history.slice(-6).reverse()
+  if (log) log.innerHTML = state.players[i].history.slice(-5).reverse()
     .map(h => '<div class="history-item">📋 ' + escHtml(h) + '</div>').join('');
 }
 
@@ -404,28 +367,22 @@ function showFinalScreen() {
   const container = document.getElementById('final-inputs');
   container.innerHTML = '';
   state.players.forEach((p, i) => {
-    const row = document.createElement('div');
-    row.className = 'final-row';
-    row.innerHTML = `<label>${escHtml(p.name)}</label>
-      <input type="number" id="final-${i}" value="${p.currentChips}" min="0" inputmode="numeric" oninput="updateChipsSum()">`;
+    const row = document.createElement('div'); row.className = 'final-row';
+    row.innerHTML = \`<label>\${escHtml(p.name)}</label>
+      <input type="number" id="final-\${i}" value="\${p.currentChips}" min="0" inputmode="numeric" oninput="updateChipsSum()">\`;
     container.appendChild(row);
   });
   updateChipsSum();
 }
 
 function updateChipsSum() {
-  const total = state.players.reduce((s, _, i) => {
-    const v = parseInt(document.getElementById('final-' + i)?.value) || 0;
-    return s + v;
-  }, 0);
-  const invested = state.players.reduce((s, p) => s + p.startChips, 0);
+  const total = state.players.reduce((s,_,i) => s + (parseInt(document.getElementById('final-'+i)?.value)||0), 0);
+  const invested = state.players.reduce((s,p) => s+p.startChips, 0);
   const diff = total - invested;
   const el = document.getElementById('chips-sum-live');
-  if (diff === 0) {
-    el.innerHTML = '✅ Сумма: <b style="color:#60e080">' + total + '</b> = ' + invested + ' (OK)';
-  } else {
-    el.innerHTML = '⚠️ Сумма: <b style="color:#f0a040">' + total + '</b>, нужно ' + invested + ' (разница: ' + (diff > 0 ? '+' : '') + diff + ')';
-  }
+  el.innerHTML = diff === 0
+    ? '✅ Сумма: <b style="color:#60e080">' + total + '</b> = ' + invested + ' (OK)'
+    : '⚠️ Сумма: <b style="color:#f0a040">' + total + '</b>, нужно ' + invested + ' (разница: ' + (diff>0?'+':'') + diff + ')';
 }
 
 function calculateResults() {
@@ -435,201 +392,202 @@ function calculateResults() {
     return v;
   });
   state.players.forEach((p, i) => p.finalChips = finals[i]);
+  const totalStart = state.players.reduce((s,p)=>s+p.startChips,0);
+  const totalFinal = state.players.reduce((s,p)=>s+p.finalChips,0);
+  const bi = document.getElementById('chips-balance-info');
+  bi.innerHTML = totalStart !== totalFinal
+    ? '⚠️ Вложено: <b>'+totalStart+'</b>, итого: <b>'+totalFinal+'</b> — разница '+(totalFinal-totalStart)
+    : '✅ Баланс сходится: '+totalFinal+' фишек';
+  bi.style.color = totalStart !== totalFinal ? '#f0a040' : '#60e080';
 
-  const totalStart = state.players.reduce((s, p) => s + p.startChips, 0);
-  const totalFinal = state.players.reduce((s, p) => s + p.finalChips, 0);
-  const balanceInfo = document.getElementById('chips-balance-info');
-  if (totalStart !== totalFinal) {
-    balanceInfo.innerHTML = '⚠️ Вложено: <b>' + totalStart + '</b>, итого: <b>' + totalFinal + '</b> — разница ' + (totalFinal-totalStart);
-    balanceInfo.style.color = '#f0a040';
-  } else {
-    balanceInfo.innerHTML = '✅ Баланс сходится: ' + totalFinal + ' фишек';
-    balanceInfo.style.color = '#60e080';
-  }
-
-  // Sort by result for display
-  const sorted = [...state.players].sort((a,b) => (b.finalChips-b.startChips) - (a.finalChips-a.startChips));
-  const tbody = document.getElementById('result-tbody');
-  tbody.innerHTML = sorted.map(p => {
-    const diff = p.finalChips - p.startChips;
-    const dRub = (diff/state.chipsPerRub).toFixed(2);
-    const cls = diff > 0 ? 'pos' : diff < 0 ? 'neg' : 'zero';
-    const sign = diff > 0 ? '+' : '';
-    return `<tr><td><b>${escHtml(p.name)}</b></td><td>${p.startChips}</td><td>${p.finalChips}</td><td class="${cls}">${sign}${dRub} ₽</td></tr>`;
+  const sorted = [...state.players].sort((a,b)=>(b.finalChips-b.startChips)-(a.finalChips-a.startChips));
+  document.getElementById('result-tbody').innerHTML = sorted.map(p => {
+    const diff = p.finalChips-p.startChips, dR=(diff/state.chipsPerRub).toFixed(2);
+    const cls=diff>0?'pos':diff<0?'neg':'zero', sign=diff>0?'+':'';
+    return \`<tr><td><b>\${escHtml(p.name)}</b></td><td>\${p.startChips}</td><td>\${p.finalChips}</td><td class="\${cls}">\${sign}\${dR} ₽</td></tr>\`;
   }).join('');
 
-  const txs = minimizeTransactions(state.players.map(p => ({ name: p.name, balance: (p.finalChips-p.startChips)/state.chipsPerRub })));
+  const txs = minimizeTransactions(state.players.map(p=>({name:p.name,balance:(p.finalChips-p.startChips)/state.chipsPerRub})));
   const txList = document.getElementById('transactions-list');
   txList.innerHTML = '';
   if (!txs.length) { txList.innerHTML = '<li>🎉 Все в расчёте!</li>'; }
-  else txs.forEach((t, idx) => {
-    const li = document.createElement('li'); li.id = 'tx-' + idx;
-    li.innerHTML = `<span>💸 <b>${escHtml(t.from)}</b></span><span class="arrow">→</span>
-      <span><b>${escHtml(t.to)}</b></span>
-      <span class="amount">${t.amount.toFixed(2)} ₽</span>
-      <button class="settle-btn" onclick="settleTx(${idx})">✓</button>`;
+  else txs.forEach((t,idx) => {
+    const li = document.createElement('li'); li.id='tx-'+idx;
+    li.innerHTML = \`<span>💸 <b>\${escHtml(t.from)}</b></span><span class="arrow">→</span><span><b>\${escHtml(t.to)}</b></span><span class="amount">\${t.amount.toFixed(2)} ₽</span><button class="settle-btn" onclick="settleTx(\${idx})">✓</button>\`;
     txList.appendChild(li);
   });
-
   document.getElementById('final-input-section').style.display = 'none';
   document.getElementById('results-section').style.display = 'block';
   if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
 }
 
 function minimizeTransactions(balances) {
-  const eps = 0.005;
-  let debtors = balances.filter(b => b.balance < -eps).map(b => ({...b})).sort((a,b) => a.balance-b.balance);
-  let creditors = balances.filter(b => b.balance > eps).map(b => ({...b})).sort((a,b) => b.balance-a.balance);
-  const txs = []; let di=0, ci=0;
-  while (di < debtors.length && ci < creditors.length) {
-    const d=debtors[di], c=creditors[ci], amount=Math.min(-d.balance, c.balance);
-    if (amount > eps) txs.push({ from:d.name, to:c.name, amount });
+  const eps=0.005;
+  let debtors=balances.filter(b=>b.balance<-eps).map(b=>({...b})).sort((a,b)=>a.balance-b.balance);
+  let creditors=balances.filter(b=>b.balance>eps).map(b=>({...b})).sort((a,b)=>b.balance-a.balance);
+  const txs=[]; let di=0,ci=0;
+  while(di<debtors.length&&ci<creditors.length){
+    const d=debtors[di],c=creditors[ci],amount=Math.min(-d.balance,c.balance);
+    if(amount>eps) txs.push({from:d.name,to:c.name,amount});
     d.balance+=amount; c.balance-=amount;
-    if (Math.abs(d.balance)<eps) di++;
-    if (Math.abs(c.balance)<eps) ci++;
+    if(Math.abs(d.balance)<eps)di++; if(Math.abs(c.balance)<eps)ci++;
   }
   return txs;
 }
 
 function settleTx(idx) {
-  const li = document.getElementById('tx-' + idx);
-  li.classList.add('settled');
-  li.querySelector('.settle-btn').disabled = true;
-  if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+  const li=document.getElementById('tx-'+idx);
+  li.classList.add('settled'); li.querySelector('.settle-btn').disabled=true;
+  if(tg&&tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
 }
 
-// ===== SAVE =====
-function saveAndNewGame() {
-  const data = loadData();
-  const gameRecord = {
-    id: Date.now(), name: state.gameName,
-    date: new Date().toISOString(), dateStr: formatDate(new Date()),
-    chipsPerRub: state.chipsPerRub,
-    players: state.players.map(p => ({
-      name: p.name, startChips: p.startChips,
-      finalChips: p.finalChips || p.currentChips,
-      diff: (p.finalChips||p.currentChips) - p.startChips,
-      diffRub: ((p.finalChips||p.currentChips) - p.startChips) / state.chipsPerRub
-    }))
-  };
-  data.games.unshift(gameRecord);
-  gameRecord.players.forEach(p => {
-    if (!data.players[p.name]) data.players[p.name] = { name:p.name, games:0, totalDiffRub:0, wins:0, losses:0 };
-    const ps = data.players[p.name];
-    ps.games++; ps.totalDiffRub += p.diffRub;
-    if (p.diffRub > 0.005) ps.wins++;
-    else if (p.diffRub < -0.005) ps.losses++;
-  });
-  saveData(data);
-  if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-  showAlert('✅ Игра сохранена!');
-  newGame();
+// ===== SAVE TO SUPABASE =====
+async function saveAndNewGame() {
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Сохраняем...';
+  try {
+    // Insert game
+    const games = await sbFetch('games', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: state.gameName,
+        date_str: formatDate(new Date()),
+        chips_per_rub: state.chipsPerRub
+      })
+    });
+    const gameId = games[0].id;
+
+    // Insert players
+    const playersData = state.players.map(p => ({
+      game_id: gameId,
+      name: p.name,
+      start_chips: p.startChips,
+      final_chips: p.finalChips || p.currentChips,
+      diff_rub: ((p.finalChips||p.currentChips) - p.startChips) / state.chipsPerRub
+    }));
+    await sbFetch('game_players', { method: 'POST', body: JSON.stringify(playersData) });
+
+    if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    showAlert('✅ Игра сохранена!');
+    newGame();
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = '💾 Сохранить и новая игра';
+    showAlert('❌ Ошибка сохранения: ' + e.message);
+  }
 }
 
-// ===== LEADERBOARD =====
-function renderLeaderboard() {
-  const data = loadData();
-  const players = Object.values(data.players).sort((a,b) => b.totalDiffRub - a.totalDiffRub);
+// ===== LEADERBOARD FROM SUPABASE =====
+async function renderLeaderboard() {
   const lbDiv = document.getElementById('leaderboard-content');
   const statsDiv = document.getElementById('stats-content');
-  if (!players.length) {
-    lbDiv.innerHTML = '<div class="empty-state">🃏 Нет сохранённых игр</div>';
-    statsDiv.innerHTML = ''; return;
-  }
-  const medals = ['🥇','🥈','🥉'];
-  lbDiv.innerHTML = `<table class="leader-table">
-    <thead><tr><th>#</th><th>Игрок</th><th>Игры</th><th>W/L</th><th>WR%</th><th>Итого ₽</th></tr></thead>
-    <tbody>${players.map((p,i) => {
-      const cls = p.totalDiffRub > 0.005 ? 'pos' : p.totalDiffRub < -0.005 ? 'neg' : 'zero';
-      const sign = p.totalDiffRub > 0 ? '+' : '';
-      const wr = p.games > 0 ? Math.round(p.wins/p.games*100) : 0;
-      return `<tr class="${i<3?'rank-'+(i+1):''}">
-        <td>${i<3?medals[i]:(i+1)+'.'}
-        </td><td><b>${escHtml(p.name)}</b></td>
-        <td>${p.games}</td><td>${p.wins}/${p.losses}</td>
-        <td>${wr}%</td>
-        <td class="${cls}">${sign}${p.totalDiffRub.toFixed(2)} ₽</td></tr>`;
-    }).join('')}</tbody></table>`;
+  lbDiv.innerHTML = '<div class="loading"><span class="spinner"></span>Загрузка...</div>';
 
-  const allNames = new Set(data.games.flatMap(g => g.players.map(p => p.name)));
-  statsDiv.innerHTML = `<div class="stats-grid">
-    <div class="stat-card"><div class="stat-val">${data.games.length}</div><div class="stat-label">Игр сыграно</div></div>
-    <div class="stat-card"><div class="stat-val">${allNames.size}</div><div class="stat-label">Игроков</div></div>
-    <div class="stat-card"><div class="stat-val" style="font-size:0.95rem;">${players.length>0?escHtml(players[0].name):'—'}</div><div class="stat-label">Лучший</div></div>
-  </div>`;
-}
+  try {
+    const players = await sbFetch('game_players?select=name,diff_rub');
+    if (!players || !players.length) {
+      lbDiv.innerHTML = '<div class="empty-state">🃏 Нет сохранённых игр</div>';
+      statsDiv.innerHTML = ''; return;
+    }
 
-// ===== HISTORY =====
-function renderHistory() {
-  const data = loadData();
-  const div = document.getElementById('history-content');
-  if (!data.games.length) { div.innerHTML = '<div class="empty-state">📚 История пуста</div>'; return; }
-  div.innerHTML = data.games.map(g => {
-    const sorted = [...g.players].sort((a,b) => b.diffRub - a.diffRub);
-    return `<div class="history-card">
-      <div class="history-card-header">
-        <div><div class="history-card-title">🃏 ${escHtml(g.name)}</div>
-        <div class="history-card-date">${g.dateStr}</div></div>
-        <button class="delete-game-btn" onclick="deleteGame(${g.id})">🗑 Удалить</button>
-      </div>
-      <table class="history-mini-table">
-        <thead><tr><th>Игрок</th><th>Вложил</th><th>Итог</th><th>±₽</th></tr></thead>
-        <tbody>${sorted.map(p => {
-          const cls = p.diffRub > 0.005 ? 'pos' : p.diffRub < -0.005 ? 'neg' : 'zero';
-          const sign = p.diffRub > 0 ? '+' : '';
-          return `<tr><td>${escHtml(p.name)}</td><td>${p.startChips}</td><td>${p.finalChips}</td><td class="${cls}">${sign}${p.diffRub.toFixed(2)} ₽</td></tr>`;
-        }).join('')}</tbody>
-      </table></div>`;
-  }).join('');
-}
-
-function deleteGame(gameId) {
-  if (!confirm('Удалить эту игру? Статистика пересчитается.')) return;
-  const data = loadData();
-  const game = data.games.find(g => g.id === gameId);
-  if (game) {
-    game.players.forEach(p => {
-      const ps = data.players[p.name]; if (!ps) return;
-      ps.games--; ps.totalDiffRub -= p.diffRub;
-      if (p.diffRub > 0.005) ps.wins--;
-      else if (p.diffRub < -0.005) ps.losses--;
-      if (ps.games <= 0) delete data.players[p.name];
+    // Aggregate
+    const agg = {};
+    players.forEach(p => {
+      if (!agg[p.name]) agg[p.name] = { name: p.name, games: 0, totalDiffRub: 0, wins: 0, losses: 0 };
+      const a = agg[p.name];
+      a.games++; a.totalDiffRub += p.diff_rub;
+      if (p.diff_rub > 0.005) a.wins++;
+      else if (p.diff_rub < -0.005) a.losses++;
     });
-    data.games = data.games.filter(g => g.id !== gameId);
-    saveData(data);
+
+    const sorted = Object.values(agg).sort((a,b) => b.totalDiffRub - a.totalDiffRub);
+    const medals = ['🥇','🥈','🥉'];
+    lbDiv.innerHTML = \`<table class="leader-table">
+      <thead><tr><th>#</th><th>Игрок</th><th>Игры</th><th>W/L</th><th>WR%</th><th>Итого ₽</th></tr></thead>
+      <tbody>\${sorted.map((p,i) => {
+        const cls=p.totalDiffRub>0.005?'pos':p.totalDiffRub<-0.005?'neg':'zero';
+        const sign=p.totalDiffRub>0?'+':'';
+        const wr=p.games>0?Math.round(p.wins/p.games*100):0;
+        return \`<tr class="\${i<3?'rank-'+(i+1):''}"><td>\${i<3?medals[i]:(i+1)+'.'}</td><td><b>\${escHtml(p.name)}</b></td><td>\${p.games}</td><td>\${p.wins}/\${p.losses}</td><td>\${wr}%</td><td class="\${cls}">\${sign}\${p.totalDiffRub.toFixed(2)} ₽</td></tr>\`;
+      }).join('')}</tbody></table>\`;
+
+    const gamesCount = await sbFetch('games?select=id');
+    const uniqueNames = new Set(players.map(p=>p.name));
+    statsDiv.innerHTML = \`<div class="stats-grid">
+      <div class="stat-card"><div class="stat-val">\${gamesCount.length}</div><div class="stat-label">Игр сыграно</div></div>
+      <div class="stat-card"><div class="stat-val">\${uniqueNames.size}</div><div class="stat-label">Игроков</div></div>
+      <div class="stat-card"><div class="stat-val" style="font-size:0.95rem;">\${sorted.length>0?escHtml(sorted[0].name):'—'}</div><div class="stat-label">Лучший</div></div>
+    </div>\`;
+  } catch(e) {
+    lbDiv.innerHTML = '<div class="empty-state">❌ Ошибка загрузки</div>';
   }
-  renderHistory();
-  if (document.getElementById('tab-leaderboard').style.display !== 'none') renderLeaderboard();
+}
+
+// ===== HISTORY FROM SUPABASE =====
+async function renderHistory() {
+  const div = document.getElementById('history-content');
+  div.innerHTML = '<div class="loading"><span class="spinner"></span>Загрузка...</div>';
+  try {
+    const games = await sbFetch('games?select=id,name,date_str,chips_per_rub,game_players(name,start_chips,final_chips,diff_rub)&order=created_at.desc');
+    if (!games || !games.length) { div.innerHTML = '<div class="empty-state">📚 История пуста</div>'; return; }
+    div.innerHTML = games.map(g => {
+      const sorted = [...(g.game_players||[])].sort((a,b)=>b.diff_rub-a.diff_rub);
+      return \`<div class="history-card">
+        <div class="history-card-header">
+          <div><div class="history-card-title">🃏 \${escHtml(g.name)}</div><div class="history-card-date">\${g.date_str||''}</div></div>
+          <button class="delete-game-btn" onclick="deleteGame(\${g.id})">🗑 Удалить</button>
+        </div>
+        <table class="history-mini-table">
+          <thead><tr><th>Игрок</th><th>Вложил</th><th>Итог</th><th>±₽</th></tr></thead>
+          <tbody>\${sorted.map(p=>{
+            const cls=p.diff_rub>0.005?'pos':p.diff_rub<-0.005?'neg':'zero';
+            const sign=p.diff_rub>0?'+':'';
+            return \`<tr><td>\${escHtml(p.name)}</td><td>\${p.start_chips}</td><td>\${p.final_chips}</td><td class="\${cls}">\${sign}\${p.diff_rub.toFixed(2)} ₽</td></tr>\`;
+          }).join('')}</tbody>
+        </table></div>\`;
+    }).join('');
+  } catch(e) {
+    div.innerHTML = '<div class="empty-state">❌ Ошибка загрузки</div>';
+  }
+}
+
+async function deleteGame(gameId) {
+  if (!confirm('Удалить эту игру?')) return;
+  try {
+    await sbFetch('games?id=eq.' + gameId, { method: 'DELETE', prefer: 'return=minimal' });
+    renderHistory();
+    if (document.getElementById('tab-leaderboard').style.display !== 'none') renderLeaderboard();
+  } catch(e) { showAlert('Ошибка удаления'); }
 }
 
 // ===== UTILS =====
 function showPage(id) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   window.scrollTo(0,0);
 }
 function goBackSetup() { showPage('page-setup'); }
 function newGame() {
   showPage('page-setup');
-  document.querySelectorAll('.tab-content').forEach(t => t.style.display='none');
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.style.display='none');
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-setup').style.display='block';
   document.querySelectorAll('.nav-tab')[0].classList.add('active');
 }
 function formatDate(d) {
-  return d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric'}) + ' ' + d.toTimeString().slice(0,5);
+  return d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+d.toTimeString().slice(0,5);
 }
 function escHtml(s) {
-  if (!s) return '';
+  if(!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 function showAlert(msg) {
-  if (tg && tg.showAlert) tg.showAlert(msg);
-  else alert(msg);
+  if(tg&&tg.showAlert) tg.showAlert(msg); else alert(msg);
 }
 
-// Init
-addPlayerInput(''); addPlayerInput(''); addPlayerInput('');
+// ===== INIT =====
+initApp();
 </script>
 </body>
 </html>
