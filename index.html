@@ -251,44 +251,96 @@ input:focus { border-color: var(--gold); }
 </div>
 
 <script>
-var SUPABASE_URL = 'https://vylimuuiwyzlwqrpsgrp.supabase.co';
-var SUPABASE_KEY = 'sb_publishable_0SUpAeZT5ytMKz2k_sNLQg_ad0n6C9L';
-var APP_PASSWORD = '2769allin';
-var AUTH_KEY = 'poker_auth_v1';
+// ============================================================================
+// КОНФИГУРАЦИЯ
+// ============================================================================
+var CONFIG = {
+  SUPABASE_URL: 'https://vylimuuiwyzlwqrpsgrp.supabase.co',
+  SUPABASE_KEY: 'sb_publishable_0SUpAeZT5ytMKz2k_sNLQg_ad0n6C9L',
+  APP_PASSWORD: '2769allin',
+  AUTH_KEY: 'poker_auth_v1'
+};
 
+// ============================================================================
+// СОСТОЯНИЕ ПРИЛОЖЕНИЯ
+// ============================================================================
+var state = {
+  players: [],
+  chipsPerRub: 10,
+  gameName: ''
+};
+
+// Кэш данных для истории и рейтинга
+var cache = {
+  games: [],
+  gamePlayers: [],
+  selectedGameIds: {}
+};
+
+// Инициализация Telegram WebApp
 var tg = window.Telegram && window.Telegram.WebApp;
-if (tg) { tg.ready(); tg.expand(); }
+if (tg) {
+  tg.ready();
+  tg.expand();
+}
 
+// ============================================================================
+// API СЛОЙ - работа с Supabase
+// ============================================================================
 function sbFetch(path, options) {
   options = options || {};
-  return fetch(SUPABASE_URL + '/rest/v1/' + path, Object.assign({}, options, {
+  return fetch(CONFIG.SUPABASE_URL + '/rest/v1/' + path, Object.assign({}, options, {
     headers: Object.assign({
-      'apikey': SUPABASE_KEY,
-      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'apikey': CONFIG.SUPABASE_KEY,
+      'Authorization': 'Bearer ' + CONFIG.SUPABASE_KEY,
       'Content-Type': 'application/json',
       'Prefer': options.prefer || 'return=representation'
     }, options.headers || {})
   })).then(function(res) {
-    if (!res.ok) return res.text().then(function(t) { throw new Error(t); });
-    return res.text().then(function(t) { return t ? JSON.parse(t) : null; });
+    if (!res.ok) {
+      return res.text().then(function(t) {
+        console.error('Supabase error:', t);
+        throw new Error(t);
+      });
+    }
+    return res.text().then(function(t) {
+      return t ? JSON.parse(t) : null;
+    });
   });
 }
 
-// AUTH
+// Загрузка всех данных для рейтинга и истории
+function loadAllData() {
+  return Promise.all([
+    sbFetch('games?select=*&order=created_at.desc'),
+    sbFetch('game_players?select=*')
+  ]).then(function(results) {
+    cache.games = results[0] || [];
+    cache.gamePlayers = results[1] || [];
+    console.log('Loaded data:', { games: cache.games.length, players: cache.gamePlayers.length });
+    return results;
+  });
+}
+
+// ============================================================================
+// АВТОРИЗАЦИЯ
+// ============================================================================
 function checkPassword() {
   var val = document.getElementById('auth-input').value;
-  if (val === APP_PASSWORD) {
-    localStorage.setItem(AUTH_KEY, '1');
+  if (val === CONFIG.APP_PASSWORD) {
+    localStorage.setItem(CONFIG.AUTH_KEY, '1');
     showPage('page-setup');
     initSetup();
   } else {
     document.getElementById('auth-error').textContent = '❌ Неверный пароль';
-    if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+    if (tg && tg.HapticFeedback) {
+      tg.HapticFeedback.notificationOccurred('error');
+    }
   }
 }
 
 function initApp() {
-  if (localStorage.getItem(AUTH_KEY) === '1') {
+  if (localStorage.getItem(CONFIG.AUTH_KEY) === '1') {
     showPage('page-setup');
     initSetup();
   } else {
@@ -300,23 +352,60 @@ function initApp() {
   }
 }
 
-// STATE
-var state = { players: [], chipsPerRub: 10, gameName: '' };
-
-// TABS
+// ============================================================================
+// НАВИГАЦИЯ
+// ============================================================================
 function switchTab(tabId, el) {
-  document.querySelectorAll('.tab-content').forEach(function(t) { t.style.display = 'none'; });
-  document.querySelectorAll('.nav-tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('.tab-content').forEach(function(t) {
+    t.style.display = 'none';
+  });
+  document.querySelectorAll('.nav-tab').forEach(function(t) {
+    t.classList.remove('active');
+  });
   document.getElementById(tabId).style.display = 'block';
   el.classList.add('active');
-  if (tabId === 'tab-leaderboard') renderLeaderboard();
-  if (tabId === 'tab-history') renderHistory();
+
+  if (tabId === 'tab-leaderboard') {
+    renderLeaderboard();
+  }
+  if (tabId === 'tab-history') {
+    renderHistory();
+  }
 }
 
-// SETUP
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(function(p) {
+    p.classList.remove('active');
+  });
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+  hideSummaryPanel();
+}
+
+function goBackSetup() {
+  showPage('page-setup');
+}
+
+function newGame() {
+  showPage('page-setup');
+  document.querySelectorAll('.tab-content').forEach(function(t) {
+    t.style.display = 'none';
+  });
+  document.querySelectorAll('.nav-tab').forEach(function(t) {
+    t.classList.remove('active');
+  });
+  document.getElementById('tab-setup').style.display = 'block';
+  document.querySelectorAll('.nav-tab')[0].classList.add('active');
+}
+
+// ============================================================================
+// ЭКРАН НАСТРОЙКИ (НОВАЯ ИГРА)
+// ============================================================================
 function initSetup() {
   if (document.getElementById('names-grid').children.length === 0) {
-    addPlayerInput(''); addPlayerInput(''); addPlayerInput('');
+    addPlayerInput('');
+    addPlayerInput('');
+    addPlayerInput('');
   }
 }
 
@@ -334,12 +423,19 @@ function addPlayerInput(name) {
   var btn = document.createElement('button');
   btn.className = 'remove-btn';
   btn.textContent = '×';
-  btn.onclick = function() { wrap.remove(); updatePlayerCount(); };
+  btn.onclick = function() {
+    wrap.remove();
+    updatePlayerCount();
+  };
   wrap.appendChild(inp);
   wrap.appendChild(btn);
   grid.appendChild(wrap);
   updatePlayerCount();
-  if (!name) setTimeout(function() { inp.focus(); }, 50);
+  if (!name) {
+    setTimeout(function() {
+      inp.focus();
+    }, 50);
+  }
 }
 
 function updatePlayerCount() {
@@ -349,33 +445,53 @@ function updatePlayerCount() {
 
 function startGame() {
   var names = Array.from(document.getElementById('names-grid').querySelectorAll('input'))
-    .map(function(i) { return i.value.trim(); }).filter(Boolean);
+    .map(function(i) {
+      return i.value.trim();
+    }).filter(Boolean);
+
   var chipsPerPlayer = parseInt(document.getElementById('chips-per-player').value) || 100;
   var chipsPerRub = parseFloat(document.getElementById('chips-per-rub').value) || 10;
   var gameName = document.getElementById('game-name').value.trim();
-  if (names.length < 2) { showAlert('Добавьте хотя бы 2 игроков!'); return; }
-  if (new Set(names).size !== names.length) { showAlert('Имена должны быть уникальными!'); return; }
+
+  if (names.length < 2) {
+    showAlert('Добавьте хотя бы 2 игроков!');
+    return;
+  }
+  if (new Set(names).size !== names.length) {
+    showAlert('Имена должны быть уникальными!');
+    return;
+  }
+
   state.chipsPerRub = chipsPerRub;
   state.gameName = gameName || ('Игра ' + formatDate(new Date()));
   state.players = names.map(function(name) {
-    return { name: name, startChips: chipsPerPlayer, currentChips: chipsPerPlayer, history: ['Старт: +' + chipsPerPlayer] };
+    return {
+      name: name,
+      startChips: chipsPerPlayer,
+      currentChips: chipsPerPlayer,
+      history: ['Старт: +' + chipsPerPlayer]
+    };
   });
+
   showPage('page-game');
   renderGamePage();
 }
 
-// GAME
+// ============================================================================
+// ЭКРАН ИГРЫ (активная игра)
+// ============================================================================
 function renderGamePage() {
   document.getElementById('game-subtitle').textContent = state.gameName + ' · 1₽ = ' + state.chipsPerRub + ' фишек';
   var grid = document.getElementById('players-grid');
   grid.innerHTML = '';
+
   state.players.forEach(function(p, i) {
     var card = document.createElement('div');
     card.className = 'player-card';
     card.id = 'pcard-' + i;
     card.innerHTML =
       '<div class="player-name">👤 ' + escHtml(p.name) + '</div>' +
-      '<div class="player-chips-display">Фишки: <span id="chips-' + i + '">' + p.currentChips + '</span> · ≈ <span id="rub-' + i + '">' + (p.currentChips/state.chipsPerRub).toFixed(2) + '</span> ₽</div>' +
+      '<div class="player-chips-display">Фишки: <span id="chips-' + i + '">' + p.currentChips + '</span> · ≈ <span id="rub-' + i + '">' + (p.currentChips / state.chipsPerRub).toFixed(2) + '</span> ₽</div>' +
       '<div class="player-chips-display" style="font-size:0.78rem;color:#5a8a6a">Вложено: <span id="start-' + i + '">' + p.startChips + '</span></div>' +
       '<div class="player-actions">' +
         '<input type="number" id="add-input-' + i + '" placeholder="Докуп фишек" min="1" inputmode="numeric">' +
@@ -383,9 +499,13 @@ function renderGamePage() {
       '</div>' +
       '<div class="history-log" id="history-' + i + '"></div>';
     grid.appendChild(card);
+
     document.getElementById('add-input-' + i).addEventListener('keydown', (function(idx) {
-      return function(e) { if (e.key === 'Enter') addChips(idx); };
+      return function(e) {
+        if (e.key === 'Enter') addChips(idx);
+      };
     })(i));
+
     updateHistoryLog(i);
   });
 }
@@ -393,135 +513,255 @@ function renderGamePage() {
 function addChips(idx) {
   var input = document.getElementById('add-input-' + idx);
   var amount = parseInt(input.value);
-  if (!amount || amount < 1) { input.focus(); return; }
+  if (!amount || amount < 1) {
+    input.focus();
+    return;
+  }
+
   var p = state.players[idx];
-  p.currentChips += amount; p.startChips += amount;
-  var t = new Date().toTimeString().slice(0,5);
+  p.currentChips += amount;
+  p.startChips += amount;
+  var t = new Date().toTimeString().slice(0, 5);
   p.history.push(t + ' Докуп: +' + amount);
+
   document.getElementById('chips-' + idx).textContent = p.currentChips;
-  document.getElementById('rub-' + idx).textContent = (p.currentChips/state.chipsPerRub).toFixed(2);
+  document.getElementById('rub-' + idx).textContent = (p.currentChips / state.chipsPerRub).toFixed(2);
   document.getElementById('start-' + idx).textContent = p.startChips;
   updateHistoryLog(idx);
+
   var card = document.getElementById('pcard-' + idx);
   card.style.borderColor = '#60e080';
-  setTimeout(function() { card.style.borderColor = ''; }, 700);
-  input.value = ''; input.focus();
-  if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+  setTimeout(function() {
+    card.style.borderColor = '';
+  }, 700);
+
+  input.value = '';
+  input.focus();
+  if (tg && tg.HapticFeedback) {
+    tg.HapticFeedback.impactOccurred('light');
+  }
 }
 
 function updateHistoryLog(i) {
   var log = document.getElementById('history-' + i);
-  if (log) log.innerHTML = state.players[i].history.slice(-5).reverse()
-    .map(function(h) { return '<div class="history-item">📋 ' + escHtml(h) + '</div>'; }).join('');
+  if (log) {
+    log.innerHTML = state.players[i].history.slice(-5).reverse()
+      .map(function(h) {
+        return '<div class="history-item">📋 ' + escHtml(h) + '</div>';
+      }).join('');
+  }
 }
 
-// FINAL
+// ============================================================================
+// ЭКРАН РЕЗУЛЬТАТОВ
+// ============================================================================
 function showFinalScreen() {
   showPage('page-result');
   document.getElementById('final-input-section').style.display = 'block';
   document.getElementById('results-section').style.display = 'none';
+
   var container = document.getElementById('final-inputs');
   container.innerHTML = '';
+
   state.players.forEach(function(p, i) {
     var row = document.createElement('div');
     row.className = 'final-row';
     var lbl = document.createElement('label');
     lbl.textContent = p.name;
     var inp = document.createElement('input');
-    inp.type = 'number'; inp.id = 'final-' + i; inp.value = p.currentChips; inp.min = 0;
-    inp.setAttribute('inputmode','numeric');
+    inp.type = 'number';
+    inp.id = 'final-' + i;
+    inp.value = p.currentChips;
+    inp.min = 0;
+    inp.setAttribute('inputmode', 'numeric');
     inp.oninput = updateChipsSum;
-    row.appendChild(lbl); row.appendChild(inp);
+    row.appendChild(lbl);
+    row.appendChild(inp);
     container.appendChild(row);
   });
+
   updateChipsSum();
 }
 
 function updateChipsSum() {
-  var total = state.players.reduce(function(s,_,i) {
-    var el = document.getElementById('final-'+i);
-    return s + (el ? parseInt(el.value)||0 : 0);
+  var total = state.players.reduce(function(s, _, i) {
+    var el = document.getElementById('final-' + i);
+    return s + (el ? parseInt(el.value) || 0 : 0);
   }, 0);
-  var invested = state.players.reduce(function(s,p) { return s+p.startChips; }, 0);
+
+  var invested = state.players.reduce(function(s, p) {
+    return s + p.startChips;
+  }, 0);
+
   var diff = total - invested;
   var el = document.getElementById('chips-sum-live');
   el.innerHTML = diff === 0
     ? '✅ Сумма: <b style="color:#60e080">' + total + '</b> = ' + invested + ' (OK)'
-    : '⚠️ Сумма: <b style="color:#f0a040">' + total + '</b>, нужно ' + invested + ' (разница: ' + (diff>0?'+':'') + diff + ')';
+    : '⚠️ Сумма: <b style="color:#f0a040">' + total + '</b>, нужно ' + invested + ' (разница: ' + (diff > 0 ? '+' : '') + diff + ')';
 }
 
 function calculateResults() {
   var finals = state.players.map(function(p, i) {
     var v = parseInt(document.getElementById('final-' + i).value);
-    if (isNaN(v) || v < 0) { showAlert('Введите корректное кол-во фишек для ' + p.name); throw ''; }
+    if (isNaN(v) || v < 0) {
+      showAlert('Введите корректное кол-во фишек для ' + p.name);
+      throw '';
+    }
     return v;
   });
-  state.players.forEach(function(p, i) { p.finalChips = finals[i]; });
-  var totalStart = state.players.reduce(function(s,p){return s+p.startChips;},0);
-  var totalFinal = state.players.reduce(function(s,p){return s+p.finalChips;},0);
+
+  state.players.forEach(function(p, i) {
+    p.finalChips = finals[i];
+  });
+
+  var totalStart = state.players.reduce(function(s, p) {
+    return s + p.startChips;
+  }, 0);
+  var totalFinal = state.players.reduce(function(s, p) {
+    return s + p.finalChips;
+  }, 0);
+
   var bi = document.getElementById('chips-balance-info');
   bi.innerHTML = totalStart !== totalFinal
-    ? '⚠️ Вложено: <b>'+totalStart+'</b>, итого: <b>'+totalFinal+'</b> — разница '+(totalFinal-totalStart)
-    : '✅ Баланс сходится: '+totalFinal+' фишек';
+    ? '⚠️ Вложено: <b>' + totalStart + '</b>, итого: <b>' + totalFinal + '</b> — разница ' + (totalFinal - totalStart)
+    : '✅ Баланс сходится: ' + totalFinal + ' фишек';
   bi.style.color = totalStart !== totalFinal ? '#f0a040' : '#60e080';
 
-  var sorted = state.players.slice().sort(function(a,b){return (b.finalChips-b.startChips)-(a.finalChips-a.startChips);});
+  var sorted = state.players.slice().sort(function(a, b) {
+    return (b.finalChips - b.startChips) - (a.finalChips - a.startChips);
+  });
+
   document.getElementById('result-tbody').innerHTML = sorted.map(function(p) {
-    var diff = p.finalChips-p.startChips, dR=(diff/state.chipsPerRub).toFixed(2);
-    var cls=diff>0?'pos':diff<0?'neg':'zero', sign=diff>0?'+':'';
-    return '<tr><td><b>'+escHtml(p.name)+'</b></td><td>'+p.startChips+'</td><td>'+p.finalChips+'</td><td class="'+cls+'">'+sign+dR+' ₽</td></tr>';
+    var diff = p.finalChips - p.startChips;
+    var dR = (diff / state.chipsPerRub).toFixed(2);
+    var cls = diff > 0 ? 'pos' : diff < 0 ? 'neg' : 'zero';
+    var sign = diff > 0 ? '+' : '';
+    return '<tr><td><b>' + escHtml(p.name) + '</b></td><td>' + p.startChips + '</td><td>' + p.finalChips + '</td><td class="' + cls + '">' + sign + dR + ' ₽</td></tr>';
   }).join('');
 
-  var txs = minimizeTransactions(state.players.map(function(p){return {name:p.name,balance:(p.finalChips-p.startChips)/state.chipsPerRub};}));
+  var txs = minimizeTransactions(state.players.map(function(p) {
+    return {
+      name: p.name,
+      balance: (p.finalChips - p.startChips) / state.chipsPerRub
+    };
+  }));
+
   var txList = document.getElementById('transactions-list');
   txList.innerHTML = '';
-  if (!txs.length) { txList.innerHTML = '<li>🎉 Все в расчёте!</li>'; }
-  else txs.forEach(function(t, idx) {
-    var li = document.createElement('li'); li.id = 'tx-'+idx;
-    li.innerHTML = '<span>💸 <b>'+escHtml(t.from)+'</b></span><span class="arrow">→</span><span><b>'+escHtml(t.to)+'</b></span><span class="amount">'+t.amount.toFixed(2)+' ₽</span><button class="settle-btn" onclick="settleTx('+idx+')">✓</button>';
-    txList.appendChild(li);
-  });
+  if (!txs.length) {
+    txList.innerHTML = '<li>🎉 Все в расчёте!</li>';
+  } else {
+    txs.forEach(function(t, idx) {
+      var li = document.createElement('li');
+      li.id = 'tx-' + idx;
+      li.innerHTML = '<span>💸 <b>' + escHtml(t.from) + '</b></span><span class="arrow">→</span><span><b>' + escHtml(t.to) + '</b></span><span class="amount">' + t.amount.toFixed(2) + ' ₽</span><button class="settle-btn" onclick="settleTx(' + idx + ')">✓</button>';
+      txList.appendChild(li);
+    });
+  }
+
   document.getElementById('final-input-section').style.display = 'none';
   document.getElementById('results-section').style.display = 'block';
-  if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+  if (tg && tg.HapticFeedback) {
+    tg.HapticFeedback.notificationOccurred('success');
+  }
 }
 
+// Алгоритм минимизации транзакций (один из лучших алгоритмов)
 function minimizeTransactions(balances) {
-  var eps=0.005;
-  var debtors=balances.filter(function(b){return b.balance<-eps;}).map(function(b){return Object.assign({},b);}).sort(function(a,b){return a.balance-b.balance;});
-  var creditors=balances.filter(function(b){return b.balance>eps;}).map(function(b){return Object.assign({},b);}).sort(function(a,b){return b.balance-a.balance;});
-  var txs=[],di=0,ci=0;
-  while(di<debtors.length&&ci<creditors.length){
-    var d=debtors[di],c=creditors[ci],amount=Math.min(-d.balance,c.balance);
-    if(amount>eps) txs.push({from:d.name,to:c.name,amount:amount});
-    d.balance+=amount; c.balance-=amount;
-    if(Math.abs(d.balance)<eps)di++; if(Math.abs(c.balance)<eps)ci++;
+  var eps = 0.005;
+
+  // Фильтруем и клонируем данные
+  var debtors = balances.filter(function(b) {
+    return b.balance < -eps;
+  }).map(function(b) {
+    return Object.assign({}, b);
+  }).sort(function(a, b) {
+    return a.balance - b.balance;
+  });
+
+  var creditors = balances.filter(function(b) {
+    return b.balance > eps;
+  }).map(function(b) {
+    return Object.assign({}, b);
+  }).sort(function(a, b) {
+    return b.balance - a.balance;
+  });
+
+  var txs = [];
+  var di = 0;
+  var ci = 0;
+
+  while (di < debtors.length && ci < creditors.length) {
+    var d = debtors[di];
+    var c = creditors[ci];
+    var amount = Math.min(-d.balance, c.balance);
+
+    if (amount > eps) {
+      txs.push({
+        from: d.name,
+        to: c.name,
+        amount: amount
+      });
+    }
+
+    d.balance += amount;
+    c.balance -= amount;
+
+    if (Math.abs(d.balance) < eps) {
+      di++;
+    }
+    if (Math.abs(c.balance) < eps) {
+      ci++;
+    }
   }
+
   return txs;
 }
 
 function settleTx(idx) {
-  var li=document.getElementById('tx-'+idx);
-  li.classList.add('settled'); li.querySelector('.settle-btn').disabled=true;
-  if(tg&&tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+  var li = document.getElementById('tx-' + idx);
+  li.classList.add('settled');
+  li.querySelector('.settle-btn').disabled = true;
+  if (tg && tg.HapticFeedback) {
+    tg.HapticFeedback.impactOccurred('medium');
+  }
 }
 
-// SAVE
+// ============================================================================
+// СОХРАНЕНИЕ ИГРЫ
+// ============================================================================
 function saveAndNewGame() {
   var btn = document.getElementById('save-btn');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Сохраняем...';
+
   sbFetch('games', {
     method: 'POST',
-    body: JSON.stringify({ name: state.gameName, date_str: formatDate(new Date()), chips_per_rub: state.chipsPerRub, is_closed: false })
+    body: JSON.stringify({
+      name: state.gameName,
+      date_str: formatDate(new Date()),
+      chips_per_rub: state.chipsPerRub,
+      is_closed: false
+    })
   }).then(function(games) {
     var gameId = games[0].id;
     var playersData = state.players.map(function(p) {
-      return { game_id: gameId, name: p.name, start_chips: p.startChips, final_chips: p.finalChips || p.currentChips, diff_rub: ((p.finalChips||p.currentChips)-p.startChips)/state.chipsPerRub };
+      return {
+        game_id: gameId,
+        name: p.name,
+        start_chips: p.startChips,
+        final_chips: p.finalChips || p.currentChips,
+        diff_rub: ((p.finalChips || p.currentChips) - p.startChips) / state.chipsPerRub
+      };
     });
-    return sbFetch('game_players', { method: 'POST', body: JSON.stringify(playersData) });
+    return sbFetch('game_players', {
+      method: 'POST',
+      body: JSON.stringify(playersData)
+    });
   }).then(function() {
-    if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    if (tg && tg.HapticFeedback) {
+      tg.HapticFeedback.notificationOccurred('success');
+    }
     showAlert('✅ Игра сохранена!');
     newGame();
   }).catch(function(e) {
@@ -531,59 +771,144 @@ function saveAndNewGame() {
   });
 }
 
-// LEADERBOARD
+// ============================================================================
+// РЕЙТИНГ - ИСПРАВЛЕННАЯ ВЕРСИЯ
+// ============================================================================
 function renderLeaderboard() {
   var lbDiv = document.getElementById('leaderboard-content');
   var statsDiv = document.getElementById('stats-content');
+
   lbDiv.innerHTML = '<div class="loading"><span class="spinner"></span>Загрузка...</div>';
-  sbFetch('game_players?select=name,diff_rub').then(function(players) {
+
+  // Загружаем все данные
+  loadAllData().then(function(results) {
+    var players = results[1]; // game_players
+
     if (!players || !players.length) {
       lbDiv.innerHTML = '<div class="empty-state">🃏 Нет сохранённых игр</div>';
-      statsDiv.innerHTML = ''; return;
+      statsDiv.innerHTML = '';
+      return;
     }
+
+    console.log('Players for rating:', players);
+
+    // Агрегация по игрокам
     var agg = {};
     players.forEach(function(p) {
-      if (!agg[p.name]) agg[p.name] = { name: p.name, games: 0, totalDiffRub: 0, wins: 0, losses: 0 };
-      var a = agg[p.name];
-      a.games++; a.totalDiffRub += p.diff_rub;
-      if (p.diff_rub > 0.005) a.wins++;
-      else if (p.diff_rub < -0.005) a.losses++;
+      // Нормализуем имя (убираем лишние пробелы)
+      var name = p.name ? p.name.trim() : 'Unknown';
+      if (!name) return;
+
+      if (!agg[name]) {
+        agg[name] = {
+          name: name,
+          games: 0,
+          totalDiffRub: 0,
+          wins: 0,
+          losses: 0,
+          maxWin: 0,
+          maxLoss: 0
+        };
+      }
+
+      var a = agg[name];
+      var diff = parseFloat(p.diff_rub) || 0;
+
+      a.games++;
+      a.totalDiffRub += diff;
+
+      if (diff > 0.005) {
+        a.wins++;
+        if (diff > a.maxWin) a.maxWin = diff;
+      } else if (diff < -0.005) {
+        a.losses++;
+        if (diff < a.maxLoss) a.maxLoss = diff;
+      }
     });
-    var sorted = Object.values(agg).sort(function(a,b){return b.totalDiffRub-a.totalDiffRub;});
-    var medals = ['🥇','🥈','🥉'];
+
+    // Проверка: сумма всех diff_rub должна быть около 0
+    var totalSum = Object.values(agg).reduce(function(s, a) {
+      return s + a.totalDiffRub;
+    }, 0);
+    console.log('Total sum (should be ~0):', totalSum);
+
+    var sorted = Object.values(agg).sort(function(a, b) {
+      return b.totalDiffRub - a.totalDiffRub;
+    });
+
+    var medals = ['🥇', '🥈', '🥉'];
+
     lbDiv.innerHTML = '<table class="leader-table"><thead><tr><th>#</th><th>Игрок</th><th>Игры</th><th>W/L</th><th>WR%</th><th>Итого ₽</th></tr></thead><tbody>' +
-      sorted.map(function(p,i) {
-        var cls=p.totalDiffRub>0.005?'pos':p.totalDiffRub<-0.005?'neg':'zero';
-        var sign=p.totalDiffRub>0?'+':'';
-        var wr=p.games>0?Math.round(p.wins/p.games*100):0;
-        return '<tr class="'+(i<3?'rank-'+(i+1):'')+'"><td>'+(i<3?medals[i]:(i+1)+'.')+'</td><td><b>'+escHtml(p.name)+'</b></td><td>'+p.games+'</td><td>'+p.wins+'/'+p.losses+'</td><td>'+wr+'%</td><td class="'+cls+'">'+sign+p.totalDiffRub.toFixed(2)+' ₽</td></tr>';
+      sorted.map(function(p, i) {
+        var cls = p.totalDiffRub > 0.005 ? 'pos' : p.totalDiffRub < -0.005 ? 'neg' : 'zero';
+        var sign = p.totalDiffRub > 0 ? '+' : '';
+        var wr = p.games > 0 ? Math.round(p.wins / p.games * 100) : 0;
+        return '<tr class="' + (i < 3 ? 'rank-' + (i + 1) : '') + '"><td>' + (i < 3 ? medals[i] : (i + 1) + '.') + '</td><td><b>' + escHtml(p.name) + '</b></td><td>' + p.games + '</td><td>' + p.wins + '/' + p.losses + '</td><td>' + wr + '%</td><td class="' + cls + '">' + sign + p.totalDiffRub.toFixed(2) + ' ₽</td></tr>';
       }).join('') + '</tbody></table>';
-    return sbFetch('games?select=id').then(function(gamesCount) {
-      statsDiv.innerHTML = '<div class="stats-grid">' +
-        '<div class="stat-card"><div class="stat-val">'+(gamesCount?gamesCount.length:0)+'</div><div class="stat-label">Игр сыграно</div></div>' +
-        '<div class="stat-card"><div class="stat-val">'+sorted.length+'</div><div class="stat-label">Игроков</div></div>' +
-        '<div class="stat-card"><div class="stat-val" style="font-size:0.95rem">'+(sorted.length>0?escHtml(sorted[0].name):'—')+'</div><div class="stat-label">Лучший</div></div>' +
-        '</div>';
-    });
-  }).catch(function() {
-    lbDiv.innerHTML = '<div class="empty-state">❌ Ошибка загрузки</div>';
+
+    // Статистика
+    var gamesCount = cache.games.length;
+    statsDiv.innerHTML = '<div class="stats-grid">' +
+      '<div class="stat-card"><div class="stat-val">' + gamesCount + '</div><div class="stat-label">Игр сыграно</div></div>' +
+      '<div class="stat-card"><div class="stat-val">' + sorted.length + '</div><div class="stat-label">Игроков</div></div>' +
+      '<div class="stat-card"><div class="stat-val" style="font-size:0.95rem">' + (sorted.length > 0 ? escHtml(sorted[0].name) : '—') + '</div><div class="stat-label">Лучший</div></div>' +
+      '</div>';
+
+  }).catch(function(e) {
+    console.error('Error loading leaderboard:', e);
+    lbDiv.innerHTML = '<div class="empty-state">❌ Ошибка загрузки: ' + e.message + '</div>';
   });
 }
 
-// ===== HISTORY WITH CHECKBOXES & STATUS =====
-var _historyGames = [];  // кэш загруженных игр
-var _selectedGameIds = {};
-
+// ============================================================================
+// ИСТОРИЯ С ЧЕКБОКСАМИ
+// ============================================================================
 function renderHistory() {
   var div = document.getElementById('history-content');
   div.innerHTML = '<div class="loading"><span class="spinner"></span>Загрузка...</div>';
-  _selectedGameIds = {};
+  cache.selectedGameIds = {};
   updateSelectedCount();
-  sbFetch('games?select=id,name,date_str,is_closed,game_players(name,start_chips,final_chips,diff_rub)&order=created_at.desc').then(function(games) {
-    _historyGames = games || [];
-    if (!_historyGames.length) { div.innerHTML = '<div class="empty-state">📚 История пуста</div>'; return; }
-    renderHistoryCards();
-  }).catch(function() {
+
+  // Загружаем данные с join игроков
+  sbFetch('games?select=id,name,date_str,is_closed,chips_per_rub&order=created_at.desc').then(function(games) {
+    if (!games || !games.length) {
+      div.innerHTML = '<div class="empty-state">📚 История пуста</div>';
+      cache.games = [];
+      return;
+    }
+
+    // Для каждой игры загружаем игроков отдельно (чтобы избежать проблем с embed)
+    var gamesWithPlayers = games.map(function(g) {
+      return g;
+    });
+
+    // Загружаем игроков для всех игр
+    var gameIds = games.map(function(g) {
+      return g.id;
+    });
+
+    if (gameIds.length === 0) {
+      cache.games = [];
+      div.innerHTML = '<div class="empty-state">📚 История пуста</div>';
+      return;
+    }
+
+    // Получаем всех игроков
+    return sbFetch('game_players?select=*').then(function(allPlayers) {
+      cache.gamePlayers = allPlayers || [];
+
+      // Привязываем игроков к играм
+      gamesWithPlayers.forEach(function(g) {
+        g.game_players = cache.gamePlayers.filter(function(p) {
+          return p.game_id === g.id;
+        });
+      });
+
+      cache.games = gamesWithPlayers;
+      renderHistoryCards();
+    });
+  }).catch(function(e) {
+    console.error('Error loading history:', e);
     div.innerHTML = '<div class="empty-state">❌ Ошибка загрузки</div>';
   });
 }
@@ -591,19 +916,23 @@ function renderHistory() {
 function renderHistoryCards() {
   var div = document.getElementById('history-content');
   div.innerHTML = '';
-  _historyGames.forEach(function(g) {
+
+  cache.games.forEach(function(g) {
     var isClosed = !!g.is_closed;
-    var isSelected = !!_selectedGameIds[g.id];
-    var sorted = (g.game_players||[]).slice().sort(function(a,b){return b.diff_rub-a.diff_rub;});
+    var isSelected = !!cache.selectedGameIds[g.id];
+    var sorted = (g.game_players || []).slice().sort(function(a, b) {
+      return (parseFloat(b.diff_rub) || 0) - (parseFloat(a.diff_rub) || 0);
+    });
 
     var card = document.createElement('div');
     card.className = 'history-card' + (isClosed ? ' closed' : '') + (isSelected ? ' selected' : '');
     card.id = 'hcard-' + g.id;
 
     var rowsHtml = sorted.map(function(p) {
-      var cls=p.diff_rub>0.005?'pos':p.diff_rub<-0.005?'neg':'zero';
-      var sign=p.diff_rub>0?'+':'';
-      return '<tr><td>'+escHtml(p.name)+'</td><td>'+p.start_chips+'</td><td>'+p.final_chips+'</td><td class="'+cls+'">'+sign+p.diff_rub.toFixed(2)+' ₽</td></tr>';
+      var diff = parseFloat(p.diff_rub) || 0;
+      var cls = diff > 0.005 ? 'pos' : diff < -0.005 ? 'neg' : 'zero';
+      var sign = diff > 0 ? '+' : '';
+      return '<tr><td>' + escHtml(p.name) + '</td><td>' + (p.start_chips || 0) + '</td><td>' + (p.final_chips || 0) + '</td><td class="' + cls + '">' + sign + diff.toFixed(2) + ' ₽</td></tr>';
     }).join('');
 
     var statusLabel = isClosed ? '✅ Закрыта' : '⏳ Не закрыта';
@@ -612,10 +941,10 @@ function renderHistoryCards() {
     card.innerHTML =
       '<div class="history-card-header">' +
         '<div class="history-card-left">' +
-          '<input type="checkbox" class="game-checkbox" ' + (isSelected?'checked':'') + ' onchange="toggleGameSelect(' + g.id + ', this.checked)">' +
+          '<input type="checkbox" class="game-checkbox" ' + (isSelected ? 'checked' : '') + ' onchange="toggleGameSelect(' + g.id + ', this.checked)">' +
           '<div>' +
             '<div class="history-card-title">🃏 ' + escHtml(g.name) + '</div>' +
-            '<div class="history-card-date">' + (g.date_str||'') + '</div>' +
+            '<div class="history-card-date">' + (g.date_str || '') + '</div>' +
           '</div>' +
         '</div>' +
         '<div class="history-card-right">' +
@@ -631,27 +960,32 @@ function renderHistoryCards() {
 
 function toggleGameSelect(gameId, checked) {
   if (checked) {
-    _selectedGameIds[gameId] = true;
+    cache.selectedGameIds[gameId] = true;
   } else {
-    delete _selectedGameIds[gameId];
+    delete cache.selectedGameIds[gameId];
   }
-  // обновить класс карточки
+
   var card = document.getElementById('hcard-' + gameId);
   if (card) {
-    if (checked) card.classList.add('selected');
-    else card.classList.remove('selected');
+    if (checked) {
+      card.classList.add('selected');
+    } else {
+      card.classList.remove('selected');
+    }
   }
+
   updateSelectedCount();
-  // если панель открыта — обновляем её
+
   if (document.getElementById('summary-panel').classList.contains('visible')) {
     renderSummaryContent();
   }
 }
 
 function updateSelectedCount() {
-  var ids = Object.keys(_selectedGameIds);
+  var ids = Object.keys(cache.selectedGameIds);
   var label = document.getElementById('selected-count-label');
   var btn = document.getElementById('btn-show-summary');
+
   if (ids.length === 0) {
     label.textContent = 'Отметь игры для подсчёта';
     btn.disabled = true;
@@ -662,25 +996,38 @@ function updateSelectedCount() {
 }
 
 function toggleGameClosed(gameId) {
-  var game = _historyGames.find(function(g) { return g.id === gameId; });
+  var game = cache.games.find(function(g) {
+    return g.id === gameId;
+  });
   if (!game) return;
+
   var newVal = !game.is_closed;
   sbFetch('games?id=eq.' + gameId, {
     method: 'PATCH',
-    body: JSON.stringify({ is_closed: newVal }),
+    body: JSON.stringify({
+      is_closed: newVal
+    }),
     prefer: 'return=minimal'
   }).then(function() {
     game.is_closed = newVal;
     renderHistoryCards();
-    if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
-  }).catch(function() { showAlert('Ошибка обновления статуса'); });
+    if (tg && tg.HapticFeedback) {
+      tg.HapticFeedback.impactOccurred('light');
+    }
+  }).catch(function() {
+    showAlert('Ошибка обновления статуса');
+  });
 }
 
-// SUMMARY PANEL
+// ============================================================================
+// ПАНЕЛЬ ИТОГОВ (В HISTORY)
+// ============================================================================
 function showSummaryPanel() {
   renderSummaryContent();
   document.getElementById('summary-panel').classList.add('visible');
-  if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+  if (tg && tg.HapticFeedback) {
+    tg.HapticFeedback.impactOccurred('medium');
+  }
 }
 
 function hideSummaryPanel() {
@@ -688,23 +1035,38 @@ function hideSummaryPanel() {
 }
 
 function renderSummaryContent() {
-  var ids = Object.keys(_selectedGameIds).map(Number);
-  var selectedGames = _historyGames.filter(function(g) { return ids.indexOf(g.id) !== -1; });
+  var ids = Object.keys(cache.selectedGameIds).map(Number);
+  var selectedGames = cache.games.filter(function(g) {
+    return ids.indexOf(g.id) !== -1;
+  });
 
   document.getElementById('summary-games-label').textContent =
-    'Игры: ' + selectedGames.map(function(g){ return escHtml(g.name); }).join(', ');
+    'Игры: ' + selectedGames.map(function(g) {
+      return escHtml(g.name);
+    }).join(', ');
 
-  // Суммируем diff_rub по каждому игроку по всем выбранным играм
+  // Агрегация diff_rub по игрокам
   var agg = {};
   selectedGames.forEach(function(g) {
-    (g.game_players||[]).forEach(function(p) {
-      if (!agg[p.name]) agg[p.name] = { name: p.name, balance: 0 };
-      agg[p.name].balance += p.diff_rub;
+    (g.game_players || []).forEach(function(p) {
+      var name = p.name ? p.name.trim() : 'Unknown';
+      if (!agg[name]) {
+        agg[name] = {
+          name: name,
+          balance: 0
+        };
+      }
+      agg[name].balance += parseFloat(p.diff_rub) || 0;
     });
   });
 
   var balances = Object.values(agg);
-  var txs = minimizeTransactions(balances.map(function(b) { return { name: b.name, balance: b.balance }; }));
+  var txs = minimizeTransactions(balances.map(function(b) {
+    return {
+      name: b.name,
+      balance: b.balance
+    };
+  }));
 
   var content = document.getElementById('summary-content');
   if (!txs.length) {
@@ -716,46 +1078,64 @@ function renderSummaryContent() {
   }
 }
 
-// DELETE
+// ============================================================================
+// УДАЛЕНИЕ ИГРЫ
+// ============================================================================
 function deleteGame(gameId) {
   if (!confirm('Удалить эту игру?')) return;
-  sbFetch('games?id=eq.' + gameId, { method: 'DELETE', prefer: 'return=minimal' }).then(function() {
-    delete _selectedGameIds[gameId];
-    _historyGames = _historyGames.filter(function(g) { return g.id !== gameId; });
+
+  sbFetch('games?id=eq.' + gameId, {
+    method: 'DELETE',
+    prefer: 'return=minimal'
+  }).then(function() {
+    // Также удаляем игроков
+    return sbFetch('game_players?game_id=eq.' + gameId, {
+      method: 'DELETE',
+      prefer: 'return=minimal'
+    });
+  }).then(function() {
+    delete cache.selectedGameIds[gameId];
+    cache.games = cache.games.filter(function(g) {
+      return g.id !== gameId;
+    });
     renderHistoryCards();
     updateSelectedCount();
-    if (_historyGames.length === 0) {
+
+    if (cache.games.length === 0) {
       document.getElementById('history-content').innerHTML = '<div class="empty-state">📚 История пуста</div>';
     }
-  }).catch(function() { showAlert('Ошибка удаления'); });
+  }).catch(function() {
+    showAlert('Ошибка удаления');
+  });
 }
 
-// UTILS
-function showPage(id) {
-  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
-  document.getElementById(id).classList.add('active');
-  window.scrollTo(0,0);
-  hideSummaryPanel();
-}
-function goBackSetup() { showPage('page-setup'); }
-function newGame() {
-  showPage('page-setup');
-  document.querySelectorAll('.tab-content').forEach(function(t){t.style.display='none';});
-  document.querySelectorAll('.nav-tab').forEach(function(t){t.classList.remove('active');});
-  document.getElementById('tab-setup').style.display='block';
-  document.querySelectorAll('.nav-tab')[0].classList.add('active');
-}
+// ============================================================================
+// УТИЛИТЫ
+// ============================================================================
 function formatDate(d) {
-  return d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+d.toTimeString().slice(0,5);
-}
-function escHtml(s) {
-  if(!s) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-function showAlert(msg) {
-  if(tg&&tg.showAlert) tg.showAlert(msg); else alert(msg);
+  return d.toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  }) + ' ' + d.toTimeString().slice(0, 5);
 }
 
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function showAlert(msg) {
+  if (tg && tg.showAlert) {
+    tg.showAlert(msg);
+  } else {
+    alert(msg);
+  }
+}
+
+// ============================================================================
+// ЗАПУСК ПРИЛОЖЕНИЯ
+// ============================================================================
 initApp();
 </script>
 </body>
