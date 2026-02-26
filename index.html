@@ -280,12 +280,6 @@ const tg = window.Telegram && window.Telegram.WebApp;
 if (tg) {
   tg.ready();
   tg.expand();
-  // Apply Telegram theme if available
-  if (tg.colorScheme === 'light') {
-    document.documentElement.style.setProperty('--bg', '#f0f8f0');
-    document.documentElement.style.setProperty('--card-bg', '#ffffff');
-    document.documentElement.style.setProperty('--text', '#1a3a28');
-  }
 }
 
 // ===== STORAGE =====
