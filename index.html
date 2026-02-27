@@ -604,24 +604,20 @@ function updateSelectedDebts() {
 
 function deleteGame(gameId) {
     var executeDelete = function() {
-        sbFetch('game_players?game_id=eq.' + gameId, {
+        // Теперь отправляем только один запрос — на удаление самой игры
+        sbFetch('games?id=eq.' + gameId, {
             method: 'DELETE',
             headers: { 'Prefer': 'return=minimal' }
         })
         .then(function() {
-            return sbFetch('games?id=eq.' + gameId, {
-                method: 'DELETE',
-                headers: { 'Prefer': 'return=minimal' }
-            });
-        })
-        .then(function() {
-            renderHistory();
+            renderHistory(); // Обновляем историю после успешного удаления
         })
         .catch(function(e) {
             showAlert('Ошибка удаления: ' + e.message);
         });
     };
 
+    // Исправленный вызов окна подтверждения из предыдущего ответа
     if (tg && tg.showConfirm) {
         tg.showConfirm('Удалить эту игру?', function(confirmed) {
             if (confirmed) executeDelete();
@@ -630,6 +626,7 @@ function deleteGame(gameId) {
         if (confirm('Удалить эту игру?')) executeDelete();
     }
 }
+
 
 
 function showPage(id) {
