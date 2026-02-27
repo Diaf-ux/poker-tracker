@@ -603,24 +603,34 @@ function updateSelectedDebts() {
 }
 
 function deleteGame(gameId) {
-  if (!confirm('Удалить эту игру?')) return;
-  sbFetch('game_players?game_id=eq.' + gameId, {
-    method: 'DELETE',
-    headers: { 'Prefer': 'return=minimal' }
-  })
-  .then(function() {
-    return sbFetch('games?id=eq.' + gameId, {
-      method: 'DELETE',
-      headers: { 'Prefer': 'return=minimal' }
-    });
-  })
-  .then(function() {
-    renderHistory();
-  })
-  .catch(function(e) {
-    showAlert('Ошибка удаления: ' + e.message);
-  });
+    var executeDelete = function() {
+        sbFetch('game_players?game_id=eq.' + gameId, {
+            method: 'DELETE',
+            headers: { 'Prefer': 'return=minimal' }
+        })
+        .then(function() {
+            return sbFetch('games?id=eq.' + gameId, {
+                method: 'DELETE',
+                headers: { 'Prefer': 'return=minimal' }
+            });
+        })
+        .then(function() {
+            renderHistory();
+        })
+        .catch(function(e) {
+            showAlert('Ошибка удаления: ' + e.message);
+        });
+    };
+
+    if (tg && tg.showConfirm) {
+        tg.showConfirm('Удалить эту игру?', function(confirmed) {
+            if (confirmed) executeDelete();
+        });
+    } else {
+        if (confirm('Удалить эту игру?')) executeDelete();
+    }
 }
+
 
 function showPage(id) {
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
