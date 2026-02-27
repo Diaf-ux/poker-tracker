@@ -517,13 +517,22 @@ function renderLeaderboard() {
 function renderHistory() {
   var div = document.getElementById('history-content');
   div.innerHTML = '<div class="loading"><span class="spinner"></span>Загрузка...</div>';
-  sbFetch('games?select=id,name,date_str,game_players(name,start_chips,final_chips,diff_rub)&order=created_at.desc').then(function(games) {
+  sbFetch('games?select=id,name,date_str,is_closed,game_players(name,start_chips,final_chips,diff_rub)&order=created_at.desc').then(function(games) {
     if (!games || !games.length) { div.innerHTML = '<div class="empty-state">📚 История пуста</div>'; return; }
     div.innerHTML = games.map(function(g) {
       var sorted = (g.game_players||[]).slice().sort(function(a,b){return b.diff_rub-a.diff_rub;});
+      var badge = g.is_closed ? '<span class="badge" style="background:var(--red);color:#fff;margin-left:6px;">Закрыта</span>' : '<span class="badge" style="background:var(--green-dark);color:var(--gold);margin-left:6px;">Открыта</span>';
+      var checkbox = '<input type="checkbox" class="game-checkbox" data-id="'+g.id+'" style="width:18px;height:18px;margin-right:8px;cursor:pointer;accent-color:var(--gold);flex-shrink:0;">';
+      var deleteBtn = '<button class="delete-game-btn" onclick="deleteGame('+g.id+')"' + (g.is_closed ? ' disabled style="opacity:0.4;cursor:not-allowed;"' : '') + '>🗑 Удалить</button>';
+      var toggleBtn = '<button class="settle-btn" onclick="toggleClosed('+g.id+','+!!g.is_closed+')" style="margin-right:6px;">'+(g.is_closed ? '🔓 Открыть' : '🔒 Закрыть')+'</button>';
       return '<div class="history-card">' +
-        '<div class="history-card-header"><div><div class="history-card-title">🃏 '+escHtml(g.name)+'</div><div class="history-card-date">'+(g.date_str||'')+'</div></div>' +
-        '<button class="delete-game-btn" onclick="deleteGame('+g.id+')">🗑 Удалить</button></div>' +
+        '<div class="history-card-header" style="flex-wrap:wrap;gap:8px;">' +
+          '<div style="display:flex;align-items:center;flex:1;min-width:0;">' +
+            checkbox +
+            '<div><div class="history-card-title">🃏 '+escHtml(g.name)+badge+'</div><div class="history-card-date">'+(g.date_str||'')+'</div></div>' +
+          '</div>' +
+          '<div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">' + toggleBtn + deleteBtn + '</div>' +
+        '</div>' +
         '<table class="history-mini-table"><thead><tr><th>Игрок</th><th>Вложил</th><th>Итог</th><th>±₽</th></tr></thead><tbody>' +
         sorted.map(function(p) {
           var cls=p.diff_rub>0.005?'pos':p.diff_rub<-0.005?'neg':'zero';
@@ -531,16 +540,86 @@ function renderHistory() {
           return '<tr><td>'+escHtml(p.name)+'</td><td>'+p.start_chips+'</td><td>'+p.final_chips+'</td><td class="'+cls+'">'+sign+p.diff_rub.toFixed(2)+' ₽</td></tr>';
         }).join('') + '</tbody></table></div>';
     }).join('');
+    document.querySelectorAll('.game-checkbox').forEach(function(cb) {
+      cb.addEventListener('change', updateSelectedDebts);
+    });
+    updateSelectedDebts();
   }).catch(function() {
     div.innerHTML = '<div class="empty-state">❌ Ошибка загрузки</div>';
   });
 }
 
+function toggleClosed(gameId, isClosed) {
+  sbFetch('games?id=eq.' + gameId, {
+    method: 'PATCH',
+    headers: { 'Prefer': 'return=minimal' },
+    body: JSON.stringify({ is_closed: !isClosed })
+  }).then(function() {
+    renderHistory();
+  }).catch(function(e) {
+    showAlert('Ошибка: ' + e.message);
+  });
+}
+
+function aggregateBalances(players) {
+  var agg = {};
+  players.forEach(function(p) {
+    if (!agg[p.name]) agg[p.name] = { name: p.name, balance: 0 };
+    agg[p.name].balance += (p.diff_rub || 0);
+  });
+  return Object.values(agg);
+}
+
+function updateSelectedDebts() {
+  var selected = Array.from(document.querySelectorAll('.game-checkbox:checked')).map(function(cb){ return cb.dataset.id; });
+  var panel = document.getElementById('debts-panel');
+  if (!selected.length) {
+    if (panel) panel.remove();
+    return;
+  }
+  sbFetch('game_players?game_id=in.(' + selected.join(',') + ')&select=name,diff_rub').then(function(players) {
+    if (!players || !players.length) return;
+    var balances = aggregateBalances(players);
+    var txs = minimizeTransactions(balances);
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.id = 'debts-panel';
+      panel.style.cssText = 'position:sticky;bottom:0;background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px 14px 0 0;padding:14px 16px;margin-top:12px;z-index:200;';
+      document.getElementById('history-content').appendChild(panel);
+    }
+    var html = '<div style="color:var(--gold);font-weight:700;margin-bottom:10px;">💰 Итоговые долги за ' + selected.length + ' игр:</div>';
+    if (!txs.length) {
+      html += '<div style="color:var(--text-muted);">Все квиты!</div>';
+    } else {
+      html += '<ul class="transactions" style="margin:0;">' +
+        txs.map(function(t) {
+          return '<li><span><b>'+escHtml(t.from)+'</b></span><span class="arrow">→</span><span><b>'+escHtml(t.to)+'</b></span><span class="amount">'+t.amount.toFixed(2)+' ₽</span></li>';
+        }).join('') + '</ul>';
+    }
+    panel.innerHTML = html;
+  }).catch(function(e) {
+    showAlert('Ошибка расчёта долгов: ' + e.message);
+  });
+}
+
 function deleteGame(gameId) {
   if (!confirm('Удалить эту игру?')) return;
-  sbFetch('games?id=eq.' + gameId, { method: 'DELETE', prefer: 'return=minimal' }).then(function() {
+  sbFetch('game_players?game_id=eq.' + gameId, {
+    method: 'DELETE',
+    headers: { 'Prefer': 'return=minimal' }
+  })
+  .then(function() {
+    return sbFetch('games?id=eq.' + gameId, {
+      method: 'DELETE',
+      headers: { 'Prefer': 'return=minimal' }
+    });
+  })
+  .then(function() {
     renderHistory();
-  }).catch(function() { showAlert('Ошибка удаления'); });
+  })
+  .catch(function(e) {
+    showAlert('Ошибка удаления: ' + e.message);
+  });
 }
 
 function showPage(id) {
