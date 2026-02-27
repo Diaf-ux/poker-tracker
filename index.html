@@ -212,9 +212,13 @@ var AUTH_KEY = 'poker_auth_v1';
 var tg = window.Telegram && window.Telegram.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
 
+// Обёртка с таймаутом 10 секунд
 function sbFetch(path, options) {
   options = options || {};
+  var controller = new AbortController();
+  var timeoutId = setTimeout(function() { controller.abort(); }, 10000);
   return fetch(SUPABASE_URL + '/rest/v1/' + path, Object.assign({}, options, {
+    signal: controller.signal,
     headers: Object.assign({
       'apikey': SUPABASE_KEY,
       'Authorization': 'Bearer ' + SUPABASE_KEY,
@@ -222,10 +226,16 @@ function sbFetch(path, options) {
       'Prefer': options.prefer || 'return=representation'
     }, options.headers || {})
   })).then(function(res) {
+    clearTimeout(timeoutId);
     if (!res.ok) return res.text().then(function(t) { throw new Error(t); });
     return res.text().then(function(t) { return t ? JSON.parse(t) : null; });
+  }).catch(function(e) {
+    clearTimeout(timeoutId);
+    if (e.name === 'AbortError') throw new Error('Таймаут соединения (10с). Проверь интернет.');
+    throw e;
   });
 }
+
 
 function checkPassword() {
   var val = document.getElementById('auth-input').value;
@@ -456,6 +466,13 @@ function saveAndNewGame() {
   var btn = document.getElementById('save-btn');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Сохраняем...';
+
+  // Страховочный сброс кнопки через 15 секунд — на любой случай
+  var safetyTimer = setTimeout(function() {
+    btn.disabled = false;
+    btn.innerHTML = '💾 Сохранить и новая игра';
+  }, 15000);
+
   sbFetch('games', {
     method: 'POST',
     body: JSON.stringify({ name: state.gameName, date_str: formatDate(new Date()), chips_per_rub: state.chipsPerRub })
@@ -466,6 +483,7 @@ function saveAndNewGame() {
     });
     return sbFetch('game_players', { method: 'POST', body: JSON.stringify(playersData) });
   }).then(function() {
+    clearTimeout(safetyTimer);
     if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
     btn.disabled = false;
     btn.innerHTML = '💾 Сохранить и новая игра';
@@ -473,11 +491,15 @@ function saveAndNewGame() {
       newGame();
     });
   }).catch(function(e) {
+    clearTimeout(safetyTimer);
     btn.disabled = false;
     btn.innerHTML = '💾 Сохранить и новая игра';
-    showAlert('❌ Ошибка: ' + e.message);
+    try {
+      showAlert('❌ Ошибка: ' + e.message);
+    } catch(_) {}
   });
 }
+
 
 
 function renderLeaderboard() {
