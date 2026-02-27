@@ -208,6 +208,7 @@ var SUPABASE_URL = 'https://vylimuuiwyzlwqrpsgrp.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_0SUpAeZT5ytMKz2k_sNLQg_ad0n6C9L';
 var APP_PASSWORD = '2769allin';
 var AUTH_KEY = 'poker_auth_v1';
+var PLAYERS_KEY = 'poker_last_players_v1';
 
 var tg = window.Telegram && window.Telegram.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
@@ -275,9 +276,12 @@ function switchTab(tabId, el) {
 
 function initSetup() {
   if (document.getElementById('names-grid').children.length === 0) {
-    addPlayerInput(''); addPlayerInput(''); addPlayerInput('');
+    var saved = localStorage.getItem(PLAYERS_KEY);
+    var names = saved ? JSON.parse(saved) : ['', '', ''];
+    names.forEach(function(name) { addPlayerInput(name); });
   }
 }
+
 
 function addPlayerInput(name) {
   name = name || '';
@@ -312,6 +316,7 @@ function startGame() {
   var chipsPerPlayer = parseInt(document.getElementById('chips-per-player').value) || 100;
   var chipsPerRub = parseFloat(document.getElementById('chips-per-rub').value) || 10;
   var gameName = document.getElementById('game-name').value.trim();
+  localStorage.setItem(PLAYERS_KEY, JSON.stringify(names));
   if (names.length < 2) { showAlert('Добавьте хотя бы 2 игроков!'); return; }
   if (new Set(names).size !== names.length) { showAlert('Имена должны быть уникальными!'); return; }
   state.chipsPerRub = chipsPerRub;
