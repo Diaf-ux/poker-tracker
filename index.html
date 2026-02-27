@@ -467,14 +467,18 @@ function saveAndNewGame() {
     return sbFetch('game_players', { method: 'POST', body: JSON.stringify(playersData) });
   }).then(function() {
     if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-    showAlert('✅ Игра сохранена!');
-    newGame();
+    btn.disabled = false;
+    btn.innerHTML = '💾 Сохранить и новая игра';
+    showAlert('✅ Игра сохранена!', function() {
+      newGame();
+    });
   }).catch(function(e) {
     btn.disabled = false;
     btn.innerHTML = '💾 Сохранить и новая игра';
     showAlert('❌ Ошибка: ' + e.message);
   });
 }
+
 
 function renderLeaderboard() {
   var lbDiv = document.getElementById('leaderboard-content');
@@ -649,9 +653,15 @@ function escHtml(s) {
   if(!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-function showAlert(msg) {
-  if(tg&&tg.showAlert) tg.showAlert(msg); else alert(msg);
+function showAlert(msg, callback) {
+  if (tg && tg.showAlert) {
+    tg.showAlert(msg, callback || function(){});
+  } else {
+    alert(msg);
+    if (callback) callback();
+  }
 }
+
 
 initApp();
 </script>
