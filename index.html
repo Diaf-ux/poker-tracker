@@ -484,7 +484,7 @@ function saveAndNewGame() {
   }).then(function(games) {
     var gameId = games[0].id;
     var playersData = state.players.map(function(p) {
-      return { game_id: gameId, name: p.name, start_chips: p.startChips, final_chips: p.finalChips || p.currentChips, diff_rub: ((p.finalChips||p.currentChips)-p.startChips)/state.chipsPerRub };
+      return { game_id: gameId, name: p.name, start_chips: p.startChips, final_chips: p.finalChips || p.currentChips, diff_rub: ((p.finalChips ?? p.currentChips) - p.startChips) / state.chipsPerRub };
     });
     return sbFetch('game_players', { method: 'POST', body: JSON.stringify(playersData) });
   }).then(function() {
