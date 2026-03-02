@@ -529,12 +529,15 @@ function renderLeaderboard() {
     });
     var sorted = Object.values(agg).sort(function(a,b){return b.totalDiffRub-a.totalDiffRub;});
     var medals = ['1','2','3'];
-    lbDiv.innerHTML = '<table class="leader-table"><thead><tr><th>#</th><th>Игрок</th><th>Игры</th><th>W/L</th><th>WR%</th><th>Итого р</th></tr></thead><tbody>' +
+    lbDiv.innerHTML = '<table class="leader-table"><thead><tr><th>#</th><th>Игрок</th><th>Игры</th><th>W/L</th><th>WR%</th><th>Ср/игра</th><th>Итого р</th></tr></thead><tbody>' +
       sorted.map(function(p,i) {
         var cls=p.totalDiffRub>0.005?'pos':p.totalDiffRub<-0.005?'neg':'zero';
         var sign=p.totalDiffRub>0?'+':'';
         var wr=p.games>0?Math.round(p.wins/p.games*100):0;
-        return '<tr class="'+(i<3?'rank-'+(i+1):'')+'"><td>'+(i<3?medals[i]:(i+1)+'.')+'</td><td><b>'+escHtml(p.name)+'</b></td><td>'+p.games+'</td><td>'+p.wins+'/'+p.losses+'</td><td>'+wr+'%</td><td class="'+cls+'">'+sign+p.totalDiffRub.toFixed(2)+' р</td></tr>';
+        var avg = p.games > 0 ? p.totalDiffRub / p.games : 0;
+        var avgSign = avg > 0.005 ? '+' : '';
+        var avgCls = avg > 0.005 ? 'pos' : avg < -0.005 ? 'neg' : 'zero';
+        return '<tr class="'+(i<3?'rank-'+(i+1):'')+'"><td>'+(i<3?medals[i]:(i+1)+'.')+'</td><td><b>'+escHtml(p.name)+'</b></td><td>'+p.games+'</td><td>'+p.wins+'/'+p.losses+'</td><td>'+wr+'%</td><td class="'+avgCls+'">'+avgSign+avg.toFixed(2)+' р</td><td class="'+cls+'">'+sign+p.totalDiffRub.toFixed(2)+' р</td></tr>';
       }).join('') + '</tbody></table>';
     return sbFetch('games?select=id').then(function(gamesCount) {
       statsDiv.innerHTML = '<div class="stats-grid">' +
