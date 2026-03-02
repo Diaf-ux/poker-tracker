@@ -111,7 +111,7 @@ input:focus { border-color: var(--gold); }
 
 <div id="page-auth" class="page">
   <div class="auth-box">
-    <div style="font-size:3rem;margin-bottom:12px">🃏</div>
+    <div style="font-size:3rem;margin-bottom:12px">&#127921;</div>
     <h2>Покер трекер</h2>
     <p>Введи пароль для доступа</p>
     <input type="password" id="auth-input" placeholder="Пароль"
@@ -123,16 +123,16 @@ input:focus { border-color: var(--gold); }
 </div>
 
 <div id="page-setup" class="page">
-  <h1>🃏 Покер</h1>
+  <h1>&#127921; Покер</h1>
   <p class="subtitle">Трекер фишек · История · Рейтинг</p>
   <div class="nav-tabs">
-    <div class="nav-tab active" onclick="switchTab('tab-setup',this)">⚙️ Игра</div>
-    <div class="nav-tab" onclick="switchTab('tab-leaderboard',this)">🏆 Рейтинг</div>
-    <div class="nav-tab" onclick="switchTab('tab-history',this)">📚 История</div>
+    <div class="nav-tab active" onclick="switchTab('tab-setup',this)">&#9881;&#65039; Игра</div>
+    <div class="nav-tab" onclick="switchTab('tab-leaderboard',this)">&#127942; Рейтинг</div>
+    <div class="nav-tab" onclick="switchTab('tab-history',this)">&#128218; История</div>
   </div>
   <div id="tab-setup" class="tab-content" style="display:block;padding-top:14px">
     <div class="section">
-      <h2>⚙️ Настройки</h2>
+      <h2>&#9881;&#65039; Настройки</h2>
       <div class="row">
         <div><label>Фишек на старте</label><input type="number" id="chips-per-player" value="500" min="1" inputmode="numeric"></div>
         <div><label>Фишек = 1 руб</label><input type="number" id="chips-per-rub" value="5" min="1" step="0.01" inputmode="decimal"></div>
@@ -140,62 +140,62 @@ input:focus { border-color: var(--gold); }
       <div><label>Название игры</label><input type="text" id="game-name" placeholder="Напр: Пятница у Васи"></div>
     </div>
     <div class="section">
-      <h2>👥 Игроки <span id="player-count-badge" class="badge">0</span></h2>
+      <h2>&#128101; Игроки <span id="player-count-badge" class="badge">0</span></h2>
       <div id="names-grid" class="names-grid"></div>
       <button class="btn btn-green btn-full" onclick="addPlayerInput()">+ Добавить игрока</button>
     </div>
     <div style="max-width:600px;margin:0 auto 16px;padding:0 16px">
-      <button class="btn btn-gold btn-full" style="font-size:1.05rem;padding:14px" onclick="startGame()">🎲 Начать игру</button>
+      <button class="btn btn-gold btn-full" style="font-size:1.05rem;padding:14px" onclick="startGame()">&#127922; Начать игру</button>
     </div>
   </div>
   <div id="tab-leaderboard" class="tab-content" style="display:none;padding-top:14px">
-    <div class="section"><h2>🏆 Рейтинг игроков</h2><div id="leaderboard-content"></div></div>
-    <div class="section"><h2>📊 Статистика</h2><div id="stats-content"></div></div>
+    <div class="section"><h2>&#127942; Рейтинг игроков</h2><div id="leaderboard-content"></div></div>
+    <div class="section"><h2>&#128202; Статистика</h2><div id="stats-content"></div></div>
   </div>
   <div id="tab-history" class="tab-content" style="display:none;padding-top:14px">
-    <div class="section"><h2>📚 История игр</h2><div id="history-content"></div></div>
+    <div class="section"><h2>&#128218; История игр</h2><div id="history-content"></div></div>
   </div>
   <div class="tg-bottom-spacer"></div>
 </div>
 
 <div id="page-game" class="page">
-  <h1>🃏 Идёт игра</h1>
+  <h1>&#127921; Идёт игра</h1>
   <p class="subtitle" id="game-subtitle"></p>
   <div style="max-width:600px;margin:0 auto 12px;padding:0 12px;display:flex;gap:8px">
-    <button class="btn btn-gold" style="flex:2" onclick="showFinalScreen()">🏁 Завершить</button>
-    <button class="btn btn-blue" style="flex:1" onclick="goBackSetup()">⚙️</button>
+    <button class="btn btn-gold" style="flex:2" onclick="showFinalScreen()">&#127937; Завершить</button>
+    <button class="btn btn-blue" style="flex:1" onclick="goBackSetup()">&#9881;&#65039;</button>
   </div>
   <div id="players-grid" class="players-grid"></div>
   <div class="tg-bottom-spacer"></div>
 </div>
 
 <div id="page-result" class="page">
-  <h1>🏆 Итоги</h1>
+  <h1>&#127942; Итоги</h1>
   <div style="max-width:600px;margin:0 auto;padding:0 12px">
     <div class="section" id="final-input-section">
-      <h2>🎰 Итоговые фишки</h2>
+      <h2>&#127920; Итоговые фишки</h2>
       <div class="alert">Пересчитайте фишки и введите финальное количество.</div>
       <div id="final-inputs"></div>
       <div id="chips-sum-live" style="text-align:right;font-size:0.82rem;color:var(--text-muted);margin-bottom:10px"></div>
-      <button class="btn btn-gold btn-full" onclick="calculateResults()">📊 Рассчитать долги</button>
+      <button class="btn btn-gold btn-full" onclick="calculateResults()">&#128202; Рассчитать долги</button>
     </div>
     <div id="results-section" style="display:none">
       <div class="section">
-        <h2>📊 Результаты</h2>
+        <h2>&#128202; Результаты</h2>
         <div class="total-info" id="chips-balance-info"></div>
         <table class="result-table">
-          <thead><tr><th>Игрок</th><th>Вложил</th><th>Итог</th><th>±₽</th></tr></thead>
+          <thead><tr><th>Игрок</th><th>Вложил</th><th>Итог</th><th>&#177;&#8381;</th></tr></thead>
           <tbody id="result-tbody"></tbody>
         </table>
       </div>
       <div class="section">
-        <h2>💸 Кто кому платит</h2>
+        <h2>&#128184; Кто кому платит</h2>
         <ul class="transactions" id="transactions-list"></ul>
         <div class="divider"></div>
         <div class="btn-group">
-          <button class="btn btn-gold btn-full" id="save-btn" onclick="saveAndNewGame()">💾 Сохранить и новая игра</button>
-          <button class="btn btn-green btn-full" onclick="newGame()">🔄 Новая игра (без сохранения)</button>
-          <button class="btn btn-blue btn-full" onclick="showFinalScreen()">✏️ Изменить фишки</button>
+          <button class="btn btn-gold btn-full" id="save-btn" onclick="saveAndNewGame()">&#128190; Сохранить и новая игра</button>
+          <button class="btn btn-green btn-full" onclick="newGame()">&#128260; Новая игра (без сохранения)</button>
+          <button class="btn btn-blue btn-full" onclick="showFinalScreen()">&#9999;&#65039; Изменить фишки</button>
         </div>
       </div>
     </div>
@@ -213,7 +213,6 @@ var PLAYERS_KEY = 'poker_last_players_v1';
 var tg = window.Telegram && window.Telegram.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
 
-// Обёртка с таймаутом 10 секунд
 function sbFetch(path, options) {
   options = options || {};
   var controller = new AbortController();
@@ -237,7 +236,6 @@ function sbFetch(path, options) {
   });
 }
 
-
 function checkPassword() {
   var val = document.getElementById('auth-input').value;
   if (val === APP_PASSWORD) {
@@ -245,7 +243,7 @@ function checkPassword() {
     showPage('page-setup');
     initSetup();
   } else {
-    document.getElementById('auth-error').textContent = '❌ Неверный пароль';
+    document.getElementById('auth-error').textContent = 'Неверный пароль';
     if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
   }
 }
@@ -282,7 +280,6 @@ function initSetup() {
   }
 }
 
-
 function addPlayerInput(name) {
   name = name || '';
   var grid = document.getElementById('names-grid');
@@ -296,7 +293,7 @@ function addPlayerInput(name) {
   inp.oninput = updatePlayerCount;
   var btn = document.createElement('button');
   btn.className = 'remove-btn';
-  btn.textContent = '×';
+  btn.textContent = 'x';
   btn.onclick = function() { wrap.remove(); updatePlayerCount(); };
   wrap.appendChild(inp);
   wrap.appendChild(btn);
@@ -322,14 +319,14 @@ function startGame() {
   state.chipsPerRub = chipsPerRub;
   state.gameName = gameName || ('Игра ' + formatDate(new Date()));
   state.players = names.map(function(name) {
-    return { name: name, startChips: chipsPerPlayer, currentChips: chipsPerPlayer, history: ['Старт: +' + chipsPerPlayer] };
+    return { name: name, startChips: chipsPerPlayer, currentChips: chipsPerPlayer, finalChips: null, history: ['Старт: +' + chipsPerPlayer] };
   });
   showPage('page-game');
   renderGamePage();
 }
 
 function renderGamePage() {
-  document.getElementById('game-subtitle').textContent = state.gameName + ' · 1₽ = ' + state.chipsPerRub + ' фишек';
+  document.getElementById('game-subtitle').textContent = state.gameName + ' · 1р = ' + state.chipsPerRub + ' фишек';
   var grid = document.getElementById('players-grid');
   grid.innerHTML = '';
   state.players.forEach(function(p, i) {
@@ -337,8 +334,8 @@ function renderGamePage() {
     card.className = 'player-card';
     card.id = 'pcard-' + i;
     card.innerHTML =
-      '<div class="player-name">👤 ' + escHtml(p.name) + '</div>' +
-      '<div class="player-chips-display">Фишки: <span id="chips-' + i + '">' + p.currentChips + '</span> · ≈ <span id="rub-' + i + '">' + (p.currentChips/state.chipsPerRub).toFixed(2) + '</span> ₽</div>' +
+      '<div class="player-name">' + escHtml(p.name) + '</div>' +
+      '<div class="player-chips-display">Фишки: <span id="chips-' + i + '">' + p.currentChips + '</span> · ≈ <span id="rub-' + i + '">' + (p.currentChips/state.chipsPerRub).toFixed(2) + '</span> р</div>' +
       '<div class="player-chips-display" style="font-size:0.78rem;color:#5a8a6a">Вложено: <span id="start-' + i + '">' + p.startChips + '</span></div>' +
       '<div class="player-actions">' +
         '<input type="number" id="add-input-' + i + '" placeholder="Докуп фишек" min="1" inputmode="numeric">' +
@@ -375,7 +372,7 @@ function addChips(idx) {
 function updateHistoryLog(i) {
   var log = document.getElementById('history-' + i);
   if (log) log.innerHTML = state.players[i].history.slice(-5).reverse()
-    .map(function(h) { return '<div class="history-item">📋 ' + escHtml(h) + '</div>'; }).join('');
+    .map(function(h) { return '<div class="history-item">' + escHtml(h) + '</div>'; }).join('');
 }
 
 function showFinalScreen() {
@@ -401,45 +398,49 @@ function showFinalScreen() {
 function updateChipsSum() {
   var total = state.players.reduce(function(s,_,i) {
     var el = document.getElementById('final-'+i);
-    return s + (el ? parseInt(el.value)||0 : 0);
+    return s + (el ? (parseInt(el.value) || 0) : 0);
   }, 0);
   var invested = state.players.reduce(function(s,p) { return s+p.startChips; }, 0);
   var diff = total - invested;
   var el = document.getElementById('chips-sum-live');
   el.innerHTML = diff === 0
-    ? '✅ Сумма: <b style="color:#60e080">' + total + '</b> = ' + invested + ' (OK)'
-    : '⚠️ Сумма: <b style="color:#f0a040">' + total + '</b>, нужно ' + invested + ' (разница: ' + (diff>0?'+':'') + diff + ')';
+    ? 'Сумма: <b style="color:#60e080">' + total + '</b> = ' + invested + ' (OK)'
+    : 'Сумма: <b style="color:#f0a040">' + total + '</b>, нужно ' + invested + ' (разница: ' + (diff>0?'+':'') + diff + ')';
 }
 
 function calculateResults() {
   var finals = state.players.map(function(p, i) {
-    var v = parseInt(document.getElementById('final-' + i).value);
-    if (isNaN(v) || v < 0) { showAlert('Введите корректное кол-во фишек для ' + p.name); throw ''; }
+    var el = document.getElementById('final-' + i);
+    var v = parseInt(el.value);
+    // Явная проверка на пустое поле и отрицательное
+    if (el.value === '' || isNaN(v) || v < 0) { showAlert('Введите корректное кол-во фишек для ' + p.name); throw ''; }
     return v;
   });
+  // Сохраняем finalChips — явно присваиваем, включая 0
   state.players.forEach(function(p, i) { p.finalChips = finals[i]; });
+
   var totalStart = state.players.reduce(function(s,p){return s+p.startChips;},0);
   var totalFinal = state.players.reduce(function(s,p){return s+p.finalChips;},0);
   var bi = document.getElementById('chips-balance-info');
   bi.innerHTML = totalStart !== totalFinal
-    ? '⚠️ Вложено: <b>'+totalStart+'</b>, итого: <b>'+totalFinal+'</b> — разница '+(totalFinal-totalStart)
-    : '✅ Баланс сходится: '+totalFinal+' фишек';
+    ? 'Вложено: <b>'+totalStart+'</b>, итого: <b>'+totalFinal+'</b> — разница '+(totalFinal-totalStart)
+    : 'Баланс сходится: '+totalFinal+' фишек';
   bi.style.color = totalStart !== totalFinal ? '#f0a040' : '#60e080';
 
   var sorted = state.players.slice().sort(function(a,b){return (b.finalChips-b.startChips)-(a.finalChips-a.startChips);});
   document.getElementById('result-tbody').innerHTML = sorted.map(function(p) {
     var diff = p.finalChips-p.startChips, dR=(diff/state.chipsPerRub).toFixed(2);
     var cls=diff>0?'pos':diff<0?'neg':'zero', sign=diff>0?'+':'';
-    return '<tr><td><b>'+escHtml(p.name)+'</b></td><td>'+p.startChips+'</td><td>'+p.finalChips+'</td><td class="'+cls+'">'+sign+dR+' ₽</td></tr>';
+    return '<tr><td><b>'+escHtml(p.name)+'</b></td><td>'+p.startChips+'</td><td>'+p.finalChips+'</td><td class="'+cls+'">'+sign+dR+' р</td></tr>';
   }).join('');
 
   var txs = minimizeTransactions(state.players.map(function(p){return {name:p.name,balance:(p.finalChips-p.startChips)/state.chipsPerRub};}));
   var txList = document.getElementById('transactions-list');
   txList.innerHTML = '';
-  if (!txs.length) { txList.innerHTML = '<li>🎉 Все в расчёте!</li>'; }
+  if (!txs.length) { txList.innerHTML = '<li>Все в расчёте!</li>'; }
   else txs.forEach(function(t, idx) {
     var li = document.createElement('li'); li.id = 'tx-'+idx;
-    li.innerHTML = '<span>💸 <b>'+escHtml(t.from)+'</b></span><span class="arrow">→</span><span><b>'+escHtml(t.to)+'</b></span><span class="amount">'+t.amount.toFixed(2)+' ₽</span><button class="settle-btn" onclick="settleTx('+idx+')">✓</button>';
+    li.innerHTML = '<span><b>'+escHtml(t.from)+'</b></span><span class="arrow">-></span><span><b>'+escHtml(t.to)+'</b></span><span class="amount">'+t.amount.toFixed(2)+' р</span><button class="settle-btn" onclick="settleTx('+idx+')">OK</button>';
     txList.appendChild(li);
   });
   document.getElementById('final-input-section').style.display = 'none';
@@ -472,10 +473,9 @@ function saveAndNewGame() {
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Сохраняем...';
 
-  // Страховочный сброс кнопки через 15 секунд — на любой случай
   var safetyTimer = setTimeout(function() {
     btn.disabled = false;
-    btn.innerHTML = '💾 Сохранить и новая игра';
+    btn.innerHTML = 'Сохранить и новая игра';
   }, 15000);
 
   sbFetch('games', {
@@ -484,28 +484,31 @@ function saveAndNewGame() {
   }).then(function(games) {
     var gameId = games[0].id;
     var playersData = state.players.map(function(p) {
-      return { game_id: gameId, name: p.name, start_chips: p.startChips, final_chips: p.finalChips ?? p.currentChips, diff_rub: ((p.finalChips ?? p.currentChips) - p.startChips) / state.chipsPerRub };
+      // ИСПРАВЛЕНО: используем Number() для явного приведения типа
+      // p.finalChips гарантированно число (включая 0) после calculateResults
+      var fc = (p.finalChips !== null && p.finalChips !== undefined) ? p.finalChips : p.currentChips;
+      return {
+        game_id: gameId,
+        name: p.name,
+        start_chips: p.startChips,
+        final_chips: fc,
+        diff_rub: (fc - p.startChips) / state.chipsPerRub
+      };
     });
     return sbFetch('game_players', { method: 'POST', body: JSON.stringify(playersData) });
   }).then(function() {
     clearTimeout(safetyTimer);
     if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
     btn.disabled = false;
-    btn.innerHTML = '💾 Сохранить и новая игра';
-    showAlert('✅ Игра сохранена!', function() {
-      newGame();
-    });
+    btn.innerHTML = 'Сохранить и новая игра';
+    showAlert('Игра сохранена!', function() { newGame(); });
   }).catch(function(e) {
     clearTimeout(safetyTimer);
     btn.disabled = false;
-    btn.innerHTML = '💾 Сохранить и новая игра';
-    try {
-      showAlert('❌ Ошибка: ' + e.message);
-    } catch(_) {}
+    btn.innerHTML = 'Сохранить и новая игра';
+    try { showAlert('Ошибка: ' + e.message); } catch(_) {}
   });
 }
-
-
 
 function renderLeaderboard() {
   var lbDiv = document.getElementById('leaderboard-content');
@@ -513,7 +516,7 @@ function renderLeaderboard() {
   lbDiv.innerHTML = '<div class="loading"><span class="spinner"></span>Загрузка...</div>';
   sbFetch('game_players?select=name,diff_rub').then(function(players) {
     if (!players || !players.length) {
-      lbDiv.innerHTML = '<div class="empty-state">🃏 Нет сохранённых игр</div>';
+      lbDiv.innerHTML = '<div class="empty-state">Нет сохранённых игр</div>';
       statsDiv.innerHTML = ''; return;
     }
     var agg = {};
@@ -525,13 +528,13 @@ function renderLeaderboard() {
       else if (p.diff_rub < -0.005) a.losses++;
     });
     var sorted = Object.values(agg).sort(function(a,b){return b.totalDiffRub-a.totalDiffRub;});
-    var medals = ['🥇','🥈','🥉'];
-    lbDiv.innerHTML = '<table class="leader-table"><thead><tr><th>#</th><th>Игрок</th><th>Игры</th><th>W/L</th><th>WR%</th><th>Итого ₽</th></tr></thead><tbody>' +
+    var medals = ['1','2','3'];
+    lbDiv.innerHTML = '<table class="leader-table"><thead><tr><th>#</th><th>Игрок</th><th>Игры</th><th>W/L</th><th>WR%</th><th>Итого р</th></tr></thead><tbody>' +
       sorted.map(function(p,i) {
         var cls=p.totalDiffRub>0.005?'pos':p.totalDiffRub<-0.005?'neg':'zero';
         var sign=p.totalDiffRub>0?'+':'';
         var wr=p.games>0?Math.round(p.wins/p.games*100):0;
-        return '<tr class="'+(i<3?'rank-'+(i+1):'')+'"><td>'+(i<3?medals[i]:(i+1)+'.')+'</td><td><b>'+escHtml(p.name)+'</b></td><td>'+p.games+'</td><td>'+p.wins+'/'+p.losses+'</td><td>'+wr+'%</td><td class="'+cls+'">'+sign+p.totalDiffRub.toFixed(2)+' ₽</td></tr>';
+        return '<tr class="'+(i<3?'rank-'+(i+1):'')+'"><td>'+(i<3?medals[i]:(i+1)+'.')+'</td><td><b>'+escHtml(p.name)+'</b></td><td>'+p.games+'</td><td>'+p.wins+'/'+p.losses+'</td><td>'+wr+'%</td><td class="'+cls+'">'+sign+p.totalDiffRub.toFixed(2)+' р</td></tr>';
       }).join('') + '</tbody></table>';
     return sbFetch('games?select=id').then(function(gamesCount) {
       statsDiv.innerHTML = '<div class="stats-grid">' +
@@ -541,7 +544,7 @@ function renderLeaderboard() {
         '</div>';
     });
   }).catch(function() {
-    lbDiv.innerHTML = '<div class="empty-state">❌ Ошибка загрузки</div>';
+    lbDiv.innerHTML = '<div class="empty-state">Ошибка загрузки</div>';
   });
 }
 
@@ -549,26 +552,26 @@ function renderHistory() {
   var div = document.getElementById('history-content');
   div.innerHTML = '<div class="loading"><span class="spinner"></span>Загрузка...</div>';
   sbFetch('games?select=id,name,date_str,is_closed,game_players(name,start_chips,final_chips,diff_rub)&order=created_at.desc').then(function(games) {
-    if (!games || !games.length) { div.innerHTML = '<div class="empty-state">📚 История пуста</div>'; return; }
+    if (!games || !games.length) { div.innerHTML = '<div class="empty-state">История пуста</div>'; return; }
     div.innerHTML = games.map(function(g) {
       var sorted = (g.game_players||[]).slice().sort(function(a,b){return b.diff_rub-a.diff_rub;});
       var badge = g.is_closed ? '<span class="badge" style="background:var(--red);color:#fff;margin-left:6px;">Закрыта</span>' : '<span class="badge" style="background:var(--green-dark);color:var(--gold);margin-left:6px;">Открыта</span>';
       var checkbox = '<input type="checkbox" class="game-checkbox" data-id="'+g.id+'" style="width:18px;height:18px;margin-right:8px;cursor:pointer;accent-color:var(--gold);flex-shrink:0;">';
-      var deleteBtn = '<button class="delete-game-btn" onclick="deleteGame('+g.id+')"' + (g.is_closed ? ' disabled style="opacity:0.4;cursor:not-allowed;"' : '') + '>🗑 Удалить</button>';
-      var toggleBtn = '<button class="settle-btn" onclick="toggleClosed('+g.id+','+!!g.is_closed+')" style="margin-right:6px;">'+(g.is_closed ? '🔓 Открыть' : '🔒 Закрыть')+'</button>';
+      var deleteBtn = '<button class="delete-game-btn" onclick="deleteGame('+g.id+')"' + (g.is_closed ? ' disabled style="opacity:0.4;cursor:not-allowed;"' : '') + '>Удалить</button>';
+      var toggleBtn = '<button class="settle-btn" onclick="toggleClosed('+g.id+','+!!g.is_closed+')" style="margin-right:6px;">'+(g.is_closed ? 'Открыть' : 'Закрыть')+'</button>';
       return '<div class="history-card">' +
         '<div class="history-card-header" style="flex-wrap:wrap;gap:8px;">' +
           '<div style="display:flex;align-items:center;flex:1;min-width:0;">' +
             checkbox +
-            '<div><div class="history-card-title">🃏 '+escHtml(g.name)+badge+'</div><div class="history-card-date">'+(g.date_str||'')+'</div></div>' +
+            '<div><div class="history-card-title">'+escHtml(g.name)+badge+'</div><div class="history-card-date">'+(g.date_str||'')+'</div></div>' +
           '</div>' +
           '<div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">' + toggleBtn + deleteBtn + '</div>' +
         '</div>' +
-        '<table class="history-mini-table"><thead><tr><th>Игрок</th><th>Вложил</th><th>Итог</th><th>±₽</th></tr></thead><tbody>' +
+        '<table class="history-mini-table"><thead><tr><th>Игрок</th><th>Вложил</th><th>Итог</th><th>+-р</th></tr></thead><tbody>' +
         sorted.map(function(p) {
           var cls=p.diff_rub>0.005?'pos':p.diff_rub<-0.005?'neg':'zero';
           var sign=p.diff_rub>0?'+':'';
-          return '<tr><td>'+escHtml(p.name)+'</td><td>'+p.start_chips+'</td><td>'+p.final_chips+'</td><td class="'+cls+'">'+sign+p.diff_rub.toFixed(2)+' ₽</td></tr>';
+          return '<tr><td>'+escHtml(p.name)+'</td><td>'+p.start_chips+'</td><td>'+p.final_chips+'</td><td class="'+cls+'">'+sign+p.diff_rub.toFixed(2)+' р</td></tr>';
         }).join('') + '</tbody></table></div>';
     }).join('');
     document.querySelectorAll('.game-checkbox').forEach(function(cb) {
@@ -576,7 +579,7 @@ function renderHistory() {
     });
     updateSelectedDebts();
   }).catch(function() {
-    div.innerHTML = '<div class="empty-state">❌ Ошибка загрузки</div>';
+    div.innerHTML = '<div class="empty-state">Ошибка загрузки</div>';
   });
 }
 
@@ -618,13 +621,13 @@ function updateSelectedDebts() {
       panel.style.cssText = 'position:sticky;bottom:0;background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px 14px 0 0;padding:14px 16px;margin-top:12px;z-index:200;';
       document.getElementById('history-content').appendChild(panel);
     }
-    var html = '<div style="color:var(--gold);font-weight:700;margin-bottom:10px;">💰 Итоговые долги за ' + selected.length + ' игр:</div>';
+    var html = '<div style="color:var(--gold);font-weight:700;margin-bottom:10px;">Итоговые долги за ' + selected.length + ' игр:</div>';
     if (!txs.length) {
       html += '<div style="color:var(--text-muted);">Все квиты!</div>';
     } else {
       html += '<ul class="transactions" style="margin:0;">' +
         txs.map(function(t) {
-          return '<li><span><b>'+escHtml(t.from)+'</b></span><span class="arrow">→</span><span><b>'+escHtml(t.to)+'</b></span><span class="amount">'+t.amount.toFixed(2)+' ₽</span></li>';
+          return '<li><span><b>'+escHtml(t.from)+'</b></span><span class="arrow">-></span><span><b>'+escHtml(t.to)+'</b></span><span class="amount">'+t.amount.toFixed(2)+' р</span></li>';
         }).join('') + '</ul>';
     }
     panel.innerHTML = html;
@@ -634,31 +637,29 @@ function updateSelectedDebts() {
 }
 
 function deleteGame(gameId) {
-    var executeDelete = function() {
-        // Теперь отправляем только один запрос — на удаление самой игры
-        sbFetch('games?id=eq.' + gameId, {
-            method: 'DELETE',
-            headers: { 'Prefer': 'return=minimal' }
-        })
-        .then(function() {
-            renderHistory(); // Обновляем историю после успешного удаления
-        })
-        .catch(function(e) {
-            showAlert('Ошибка удаления: ' + e.message);
-        });
-    };
-
-    // Исправленный вызов окна подтверждения из предыдущего ответа
-    if (tg && tg.showConfirm) {
-        tg.showConfirm('Удалить эту игру?', function(confirmed) {
-            if (confirmed) executeDelete();
-        });
-    } else {
-        if (confirm('Удалить эту игру?')) executeDelete();
-    }
+  var executeDelete = function() {
+    sbFetch('game_players?game_id=eq.' + gameId, {
+      method: 'DELETE',
+      headers: { 'Prefer': 'return=minimal' }
+    }).then(function() {
+      return sbFetch('games?id=eq.' + gameId, {
+        method: 'DELETE',
+        headers: { 'Prefer': 'return=minimal' }
+      });
+    }).then(function() {
+      renderHistory();
+    }).catch(function(e) {
+      showAlert('Ошибка удаления: ' + e.message);
+    });
+  };
+  if (tg && tg.showConfirm) {
+    tg.showConfirm('Удалить эту игру?', function(confirmed) {
+      if (confirmed) executeDelete();
+    });
+  } else {
+    if (confirm('Удалить эту игру?')) executeDelete();
+  }
 }
-
-
 
 function showPage(id) {
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
@@ -688,7 +689,6 @@ function showAlert(msg, callback) {
     if (callback) callback();
   }
 }
-
 
 initApp();
 </script>
