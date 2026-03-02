@@ -610,14 +610,22 @@ function aggregateBalances(players) {
 function updateSelectedDebts() {
   var selected = Array.from(document.querySelectorAll('.game-checkbox:checked')).map(function(cb){ return cb.dataset.id; });
   var panel = document.getElementById('debts-panel');
-  if (!selected.length) {
-    if (panel) panel.remove();
-    return;
-  }
-  sbFetch('game_players?game_id=in.(' + selected.join(',') + ')&select=name,diff_rub').then(function(players) {
+  if (!selected.length) { if (panel) panel.remove(); return; }
+  Promise.all([
+    sbFetch('game_players?game_id=in.(' + selected.join(',') + ')&select=name,diff_rub'),
+    sbFetch('payments?select=from_name,to_name,amount')
+  ]).then(function(results) {
+    var players = results[0];
+    var allPayments = results[1] || [];
     if (!players || !players.length) return;
     var balances = aggregateBalances(players);
     var txs = minimizeTransactions(balances);
+    var displayTxs = txs.map(function(t) {
+      var paid = allPayments
+        .filter(function(p){ return p.from_name === t.from && p.to_name === t.to; })
+        .reduce(function(s, p){ return s + Number(p.amount); }, 0);
+      return { from: t.from, to: t.to, original: t.amount, remaining: Math.max(0, t.amount - paid) };
+    }).filter(function(t){ return t.remaining > 0.005; });
     if (!panel) {
       panel = document.createElement('div');
       panel.id = 'debts-panel';
@@ -625,18 +633,33 @@ function updateSelectedDebts() {
       document.getElementById('history-content').appendChild(panel);
     }
     var html = '<div style="color:var(--gold);font-weight:700;margin-bottom:10px;">Итоговые долги за ' + selected.length + ' игр:</div>';
-    if (!txs.length) {
-      html += '<div style="color:var(--text-muted);">Все квиты!</div>';
+    if (!displayTxs.length) {
+      html += '<div style="color:var(--green-light);">✅ Все долги оплачены!</div>';
     } else {
       html += '<ul class="transactions" style="margin:0;">' +
-        txs.map(function(t) {
-          return '<li><span><b>'+escHtml(t.from)+'</b></span><span class="arrow">-></span><span><b>'+escHtml(t.to)+'</b></span><span class="amount">'+t.amount.toFixed(2)+' р</span></li>';
+        displayTxs.map(function(t) {
+          return '<li><span><b>'+escHtml(t.from)+'</b></span><span class="arrow">→</span><span><b>'+escHtml(t.to)+'</b></span><span class="amount">'+t.remaining.toFixed(2)+' р</span><button class="settle-btn" onclick="settleDebt(''+escHtml(t.from)+'',''+escHtml(t.to)+'','+t.remaining.toFixed(2)+')">✓ Оплатил</button></li>';
         }).join('') + '</ul>';
     }
     panel.innerHTML = html;
   }).catch(function(e) {
     showAlert('Ошибка расчёта долгов: ' + e.message);
   });
+}
+
+function settleDebt(fromName, toName, amount) {
+  var confirmMsg = fromName + ' оплатил ' + Number(amount).toFixed(2) + ' р → ' + toName + '?';
+  function doSettle() {
+    sbFetch('payments', {
+      method: 'POST',
+      body: JSON.stringify({ from_name: fromName, to_name: toName, amount: amount })
+    }).then(function() {
+      if (tg) tg.HapticFeedback.notificationOccurred('success');
+      updateSelectedDebts();
+    }).catch(function(e) { showAlert(e.message); });
+  }
+  if (tg) { tg.showConfirm(confirmMsg, function(ok){ if (ok) doSettle(); }); }
+  else { if (confirm(confirmMsg)) doSettle(); }
 }
 
 function deleteGame(gameId) {
