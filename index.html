@@ -638,7 +638,7 @@ function updateSelectedDebts() {
     } else {
       html += '<ul class="transactions" style="margin:0;">' +
         displayTxs.map(function(t) {
-          return '<li><span><b>'+escHtml(t.from)+'</b></span><span class="arrow">→</span><span><b>'+escHtml(t.to)+'</b></span><span class="amount">'+t.remaining.toFixed(2)+' р</span><button class="settle-btn" onclick="settleDebt(''+escHtml(t.from)+'',''+escHtml(t.to)+'','+t.remaining.toFixed(2)+')">✓ Оплатил</button></li>';
+          return '<li><span><b>'+escHtml(t.from)+'</b></span><span class="arrow">→</span><span><b>'+escHtml(t.to)+'</b></span><span class="amount">'+t.remaining.toFixed(2)+' р</span><button class="settle-btn" onclick="settleDebt(\''+escHtml(t.from)+'\''+',\''+escHtml(t.to)+'\','+t.remaining.toFixed(2)+')">✓ Оплатил</button></li>';
         }).join('') + '</ul>';
     }
     panel.innerHTML = html;
