@@ -822,7 +822,7 @@ function aggregateBalances(players) {
 
 function getPayments() {
   if (paymentsCache) return Promise.resolve(paymentsCache);
-  return sbFetch('payments?select=from_name,to_name,amount').then(function(p) {
+  return sbFetch('payments?select=from_name,to_name,amount,game_ids').then(function(p) {
     paymentsCache = p || [];
     return paymentsCache;
   });
@@ -848,7 +848,11 @@ function _doUpdateDebts() {
     var txs = minimizeTransactions(balances);
     var displayTxs = txs.map(function(t) {
       var paid = allPayments
-        .filter(function(p){ return p.from_name === t.from && p.to_name === t.to; })
+        .filter(function(p){
+          if (p.from_name !== t.from || p.to_name !== t.to) return false;
+          if (!p.game_ids) return false; // legacy payments without game_ids are ignored
+          return selected.some(function(gid){ return p.game_ids.indexOf(',' + gid + ',') !== -1; });
+        })
         .reduce(function(s, p){ return s + Number(p.amount); }, 0);
       return { from: t.from, to: t.to, original: t.amount, remaining: Math.max(0, t.amount - paid) };
     }).filter(function(t){ return t.remaining > 0.005; })
@@ -876,11 +880,13 @@ function _doUpdateDebts() {
 }
 
 function settleDebt(fromName, toName, amount) {
+  var selectedIds = Array.from(document.querySelectorAll('.game-checkbox:checked')).map(function(cb){ return cb.dataset.id; });
+  var gameIdsStr = ',' + selectedIds.join(',') + ',';
   var confirmMsg = fromName + ' оплатил ' + Number(amount).toFixed(2) + ' р → ' + toName + '?';
   function doSettle() {
     sbFetch('payments', {
       method: 'POST',
-      body: JSON.stringify({ from_name: fromName, to_name: toName, amount: amount })
+      body: JSON.stringify({ from_name: fromName, to_name: toName, amount: amount, game_ids: gameIdsStr })
     }).then(function() {
       paymentsCache = null;
       if (tg) tg.HapticFeedback.notificationOccurred('success');
@@ -902,6 +908,13 @@ function deleteGame(gameId) {
         headers: { 'Prefer': 'return=minimal' }
       });
     }).then(function() {
+      // Delete payments that reference this game
+      return sbFetch('payments?game_ids=like.*,' + gameId + ',*', {
+        method: 'DELETE',
+        headers: { 'Prefer': 'return=minimal' }
+      }).catch(function(){ /* non-critical */ });
+    }).then(function() {
+      paymentsCache = null;
       renderHistory();
     }).catch(function(e) {
       showAlert('Ошибка удаления: ' + e.message);
