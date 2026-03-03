@@ -154,21 +154,20 @@ input:focus { border-color: var(--gold); }
         <div id="cash-rate-field"><label>Фишек = 1 руб</label><input type="number" id="chips-per-rub" value="5" min="1" step="0.01" inputmode="decimal"></div>
       </div>
       <div id="tournament-fields" style="display:none">
-        <div class="row">
-          <div><label>Бай-ин (₽)</label><input type="number" id="buy-in" value="500" min="1" inputmode="numeric" oninput="updatePayoutPreview()"></div>
-          <div><label>Схема призов</label>
-            <select id="payout-scheme" onchange="updatePayoutScheme()" style="width:100%;background:var(--bg);border:1px solid var(--card-border);color:var(--text);border-radius:8px;padding:11px 10px;font-size:0.88rem;">
-              <option value="winner_all">🥇 Победитель всё</option>
-              <option value="top2">🥇🥈 Топ-2</option>
-            </select>
+        <div><label>Бай-ин (₽)</label><input type="number" id="buy-in" value="500" min="1" inputmode="numeric" oninput="updatePayoutPreview()"></div>
+        <div style="margin-top:12px">
+          <label>Схема призов</label>
+          <div class="mode-toggle" style="margin-bottom:0">
+            <button class="mode-btn active" id="scheme-btn-winner" onclick="selectPayoutScheme('winner_all')">🥇 Победитель всё</button>
+            <button class="mode-btn" id="scheme-btn-top2" onclick="selectPayoutScheme('top2')">🥇🥈 Топ-2</button>
           </div>
         </div>
-        <div id="top2-fields" style="display:none;margin-bottom:10px">
+        <div id="top2-fields" style="display:none;margin-top:12px">
           <label>Приз 2-го места (₽)</label>
           <input type="number" id="place2-prize" value="200" min="0" inputmode="numeric" oninput="updatePayoutPreview()">
           <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px">Совет: введи бай-ин — 2-й выходит в ноль. Меньше — символическая компенсация.</div>
         </div>
-        <div id="payout-preview" class="alert" style="background:var(--green-dark);color:var(--text);display:none"></div>
+        <div id="payout-preview" class="alert" style="background:var(--green-dark);color:var(--text);display:none;margin-top:10px"></div>
       </div>
       <div><label>Название игры</label><input type="text" id="game-name" placeholder="Напр: Пятница у Васи"></div>
     </div>
@@ -354,15 +353,24 @@ function setGameMode(mode) {
   if (mode === 'tournament') updatePayoutPreview();
 }
 
-function updatePayoutScheme() {
-  var scheme = document.getElementById('payout-scheme').value;
+function getPayoutScheme() {
+  return document.getElementById('scheme-btn-top2') && document.getElementById('scheme-btn-top2').classList.contains('active') ? 'top2' : 'winner_all';
+}
+
+function selectPayoutScheme(scheme) {
+  document.getElementById('scheme-btn-winner').classList.toggle('active', scheme === 'winner_all');
+  document.getElementById('scheme-btn-top2').classList.toggle('active', scheme === 'top2');
   document.getElementById('top2-fields').style.display = scheme === 'top2' ? '' : 'none';
   if (scheme === 'top2') {
     var buyIn = parseFloat(document.getElementById('buy-in').value) || 0;
     var p2el = document.getElementById('place2-prize');
-    if (p2el) p2el.value = buyIn; // sync once when switching
+    if (p2el) p2el.value = buyIn;
   }
   updatePayoutPreview();
+}
+
+function updatePayoutScheme() {
+  selectPayoutScheme(getPayoutScheme());
 }
 
 function updatePayoutPreview() {
@@ -371,7 +379,7 @@ function updatePayoutPreview() {
   var buyIn = parseFloat(document.getElementById('buy-in').value) || 0;
   var n = document.getElementById('names-grid').querySelectorAll('input').length || 0;
   var pool = buyIn * n;
-  var scheme = document.getElementById('payout-scheme').value;
+  var scheme = getPayoutScheme();
   var place2El = document.getElementById('place2-prize');
   var p2 = scheme === 'top2' ? (parseFloat(place2El ? place2El.value : 0) || 0) : 0;
   var p1 = pool - p2;
@@ -401,7 +409,7 @@ function startGame() {
   state.gameName = gameName || ('Игра ' + formatDate(new Date()));
   if (state.mode === 'tournament') {
     state.buyIn = parseFloat(document.getElementById('buy-in').value) || 500;
-    state.payoutScheme = document.getElementById('payout-scheme').value;
+    state.payoutScheme = getPayoutScheme();
     var p2el = document.getElementById('place2-prize');
     state.place2Prize = state.payoutScheme === 'top2' ? (parseFloat(p2el ? p2el.value : state.buyIn) || state.buyIn) : 0;
     state.chipsPerRub = 1;
