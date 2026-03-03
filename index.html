@@ -102,6 +102,14 @@ input:focus { border-color: var(--gold); }
 .stat-val { font-size: 1.5rem; font-weight: 700; color: var(--gold); }
 .stat-label { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
 .tg-bottom-spacer { height: 80px; }
+.mode-toggle { display: flex; margin-bottom: 14px; border-radius: 10px; overflow: hidden; border: 1.5px solid var(--card-border); }
+.mode-btn { flex: 1; padding: 10px; font-size: 0.88rem; font-weight: 600; border: none; cursor: pointer; background: var(--bg); color: var(--text-muted); transition: all 0.15s; min-height: 40px; }
+.mode-btn.active { background: var(--gold); color: #1a1a00; }
+.place-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 10px 12px; background: var(--bg); border-radius: 10px; border: 1px solid var(--card-border); }
+.place-medal { font-size: 1.3rem; flex-shrink: 0; width: 28px; text-align: center; }
+.place-label { color: var(--text); font-weight: 600; flex-shrink: 0; min-width: 80px; font-size: 0.88rem; }
+.place-select { flex: 1; background: var(--card-bg); border: 1px solid var(--card-border); color: var(--text); border-radius: 8px; padding: 8px 10px; font-size: 0.88rem; outline: none; }
+.place-prize { color: var(--gold); font-weight: 700; flex-shrink: 0; font-size: 0.88rem; }
 .filter-pills { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 10px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 .filter-pills::-webkit-scrollbar { display: none; }
 .filter-pill { flex-shrink: 0; padding: 6px 16px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; cursor: pointer; border: 1.5px solid var(--card-border); background: var(--bg); color: var(--text-muted); transition: all 0.15s; min-height: 34px; display: inline-flex; align-items: center; }
@@ -136,10 +144,30 @@ input:focus { border-color: var(--gold); }
   </div>
   <div id="tab-setup" class="tab-content" style="display:block;padding-top:14px">
     <div class="section">
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="mode-btn-cash" onclick="setGameMode('cash')">💵 Кэш</button>
+        <button class="mode-btn" id="mode-btn-tournament" onclick="setGameMode('tournament')">🏆 Турнир</button>
+      </div>
       <h2>&#9881;&#65039; Настройки</h2>
       <div class="row">
         <div><label>Фишек на старте</label><input type="number" id="chips-per-player" value="500" min="1" inputmode="numeric"></div>
-        <div><label>Фишек = 1 руб</label><input type="number" id="chips-per-rub" value="5" min="1" step="0.01" inputmode="decimal"></div>
+        <div id="cash-rate-field"><label>Фишек = 1 руб</label><input type="number" id="chips-per-rub" value="5" min="1" step="0.01" inputmode="decimal"></div>
+      </div>
+      <div id="tournament-fields" style="display:none">
+        <div class="row">
+          <div><label>Бай-ин (₽)</label><input type="number" id="buy-in" value="500" min="1" inputmode="numeric" oninput="updatePayoutPreview()"></div>
+          <div><label>Схема призов</label>
+            <select id="payout-scheme" onchange="updatePayoutScheme()" style="width:100%;background:var(--bg);border:1px solid var(--card-border);color:var(--text);border-radius:8px;padding:11px 10px;font-size:0.88rem;">
+              <option value="winner_all">🥇 Победитель всё</option>
+              <option value="top2">🥇🥈 Топ-2</option>
+            </select>
+          </div>
+        </div>
+        <div id="top2-fields" style="display:none;margin-bottom:10px">
+          <label>Приз 2-го места (× бай-ин)</label>
+          <input type="number" id="place2-mult" value="1.5" min="0.5" max="5" step="0.5" inputmode="decimal" oninput="updatePayoutPreview()">
+        </div>
+        <div id="payout-preview" class="alert" style="background:var(--green-dark);color:var(--text);display:none"></div>
       </div>
       <div><label>Название игры</label><input type="text" id="game-name" placeholder="Напр: Пятница у Васи"></div>
     </div>
@@ -265,7 +293,7 @@ function initApp() {
   }
 }
 
-var state = { players: [], chipsPerRub: 10, gameName: '' };
+var state = { players: [], chipsPerRub: 10, gameName: '', mode: 'cash', buyIn: 0, payoutScheme: 'winner_all', place2Mult: 1.5 };
 var activePlayerFilter = null;
 var allGamesCache = null;
 var paymentsCache = null;
@@ -316,45 +344,92 @@ function updatePlayerCount() {
     document.getElementById('names-grid').querySelectorAll('input').length;
 }
 
+function setGameMode(mode) {
+  state.mode = mode;
+  document.getElementById('mode-btn-cash').classList.toggle('active', mode === 'cash');
+  document.getElementById('mode-btn-tournament').classList.toggle('active', mode === 'tournament');
+  document.getElementById('cash-rate-field').style.display = mode === 'cash' ? '' : 'none';
+  document.getElementById('tournament-fields').style.display = mode === 'tournament' ? '' : 'none';
+  if (mode === 'tournament') updatePayoutPreview();
+}
+
+function updatePayoutScheme() {
+  var scheme = document.getElementById('payout-scheme').value;
+  document.getElementById('top2-fields').style.display = scheme === 'top2' ? '' : 'none';
+  updatePayoutPreview();
+}
+
+function updatePayoutPreview() {
+  var preview = document.getElementById('payout-preview');
+  if (!preview) return;
+  var buyIn = parseFloat(document.getElementById('buy-in').value) || 0;
+  var n = document.getElementById('names-grid').querySelectorAll('input').length || 0;
+  var pool = buyIn * n;
+  var scheme = document.getElementById('payout-scheme').value;
+  var mult = parseFloat(document.getElementById('place2-mult') ? document.getElementById('place2-mult').value : 1.5) || 1.5;
+  var p2 = scheme === 'top2' ? buyIn * mult : 0;
+  var p1 = pool - p2;
+  var txt = '💰 Пул: ' + pool + ' р &nbsp;|&nbsp; 🥇 1-е: +' + (p1 - buyIn).toFixed(0) + ' р';
+  if (scheme === 'top2') txt += ' &nbsp;|&nbsp; 🥈 2-е: +' + (p2 - buyIn).toFixed(0) + ' р';
+  preview.innerHTML = txt;
+  preview.style.display = pool > 0 ? '' : 'none';
+}
+
 function startGame() {
   var names = Array.from(document.getElementById('names-grid').querySelectorAll('input'))
     .map(function(i) { return i.value.trim(); }).filter(Boolean);
   var chipsPerPlayer = parseInt(document.getElementById('chips-per-player').value) || 100;
-  var chipsPerRub = parseFloat(document.getElementById('chips-per-rub').value) || 10;
   var gameName = document.getElementById('game-name').value.trim();
   localStorage.setItem(PLAYERS_KEY, JSON.stringify(names));
   if (names.length < 2) { showAlert('Добавьте хотя бы 2 игроков!'); return; }
   if (new Set(names).size !== names.length) { showAlert('Имена должны быть уникальными!'); return; }
-  state.chipsPerRub = chipsPerRub;
   state.gameName = gameName || ('Игра ' + formatDate(new Date()));
+  if (state.mode === 'tournament') {
+    state.buyIn = parseFloat(document.getElementById('buy-in').value) || 500;
+    state.payoutScheme = document.getElementById('payout-scheme').value;
+    state.place2Mult = parseFloat(document.getElementById('place2-mult') ? document.getElementById('place2-mult').value : 1.5) || 1.5;
+    state.chipsPerRub = 1;
+  } else {
+    state.chipsPerRub = parseFloat(document.getElementById('chips-per-rub').value) || 10;
+    state.buyIn = 0;
+  }
   state.players = names.map(function(name) {
-    return { name: name, startChips: chipsPerPlayer, currentChips: chipsPerPlayer, finalChips: null, history: ['Старт: +' + chipsPerPlayer] };
+    return { name: name, startChips: chipsPerPlayer, currentChips: chipsPerPlayer, finalChips: null, diffRub: null, history: ['Старт: +' + chipsPerPlayer] };
   });
   showPage('page-game');
   renderGamePage();
 }
 
 function renderGamePage() {
-  document.getElementById('game-subtitle').textContent = state.gameName + ' · 1р = ' + state.chipsPerRub + ' фишек';
+  var isTournament = state.mode === 'tournament';
+  var subtitle = isTournament
+    ? state.gameName + ' 🏆 · Бай-ин ' + state.buyIn + ' р · Пул ' + (state.buyIn * state.players.length) + ' р'
+    : state.gameName + ' · 1р = ' + state.chipsPerRub + ' фишек';
+  document.getElementById('game-subtitle').textContent = subtitle;
   var grid = document.getElementById('players-grid');
   grid.innerHTML = '';
   state.players.forEach(function(p, i) {
     var card = document.createElement('div');
     card.className = 'player-card';
     card.id = 'pcard-' + i;
-    card.innerHTML =
-      '<div class="player-name">' + escHtml(p.name) + '</div>' +
-      '<div class="player-chips-display">Фишки: <span id="chips-' + i + '">' + p.currentChips + '</span> · ≈ <span id="rub-' + i + '">' + (p.currentChips/state.chipsPerRub).toFixed(2) + '</span> р</div>' +
-      '<div class="player-chips-display" style="font-size:0.78rem;color:#5a8a6a">Вложено: <span id="start-' + i + '">' + p.startChips + '</span></div>' +
+    var rebuyHtml = isTournament ? '' :
       '<div class="player-actions">' +
         '<input type="number" id="add-input-' + i + '" placeholder="Докуп фишек" min="1" inputmode="numeric">' +
         '<button class="btn btn-green btn-sm" onclick="addChips(' + i + ')">+ Докуп</button>' +
-      '</div>' +
+      '</div>';
+    var rubHtml = isTournament ? '' : ' · ≈ <span id="rub-' + i + '">' + (p.currentChips/state.chipsPerRub).toFixed(2) + '</span> р';
+    card.innerHTML =
+      '<div class="player-name">' + escHtml(p.name) + '</div>' +
+      '<div class="player-chips-display">Фишки: <span id="chips-' + i + '">' + p.currentChips + '</span>' + rubHtml + '</div>' +
+      '<div class="player-chips-display" style="font-size:0.78rem;color:#5a8a6a">Вложено: <span id="start-' + i + '">' + p.startChips + '</span></div>' +
+      rebuyHtml +
       '<div class="history-log" id="history-' + i + '"></div>';
     grid.appendChild(card);
-    document.getElementById('add-input-' + i).addEventListener('keydown', (function(idx) {
-      return function(e) { if (e.key === 'Enter') addChips(idx); };
-    })(i));
+    if (!isTournament) {
+      document.getElementById('add-input-' + i).addEventListener('keydown', (function(idx) {
+        return function(e) { if (e.key === 'Enter') addChips(idx); };
+      })(i));
+    }
     updateHistoryLog(i);
   });
 }
@@ -384,24 +459,71 @@ function updateHistoryLog(i) {
     .map(function(h) { return '<div class="history-item">' + escHtml(h) + '</div>'; }).join('');
 }
 
+function updatePrizePreview() {
+  var preview = document.getElementById('prize-preview');
+  if (!preview) return;
+  var p1sel = document.getElementById('place1-select');
+  var p2sel = document.getElementById('place2-select');
+  if (!p1sel) return;
+  var p1 = p1sel.value;
+  var p2 = p2sel ? p2sel.value : null;
+  if (p1 === p2 && p2 !== null) { preview.innerHTML = '⚠️ 1-е и 2-е место — один игрок!'; preview.style.background='var(--red)'; return; }
+  var pool = state.buyIn * state.players.length;
+  var prize2 = state.payoutScheme === 'top2' ? state.buyIn * state.place2Mult : 0;
+  var prize1 = pool - prize2;
+  var lines = state.players.map(function(p) {
+    var d = p.name === p1 ? prize1 - state.buyIn : p.name === p2 ? prize2 - state.buyIn : -state.buyIn;
+    var sign = d >= 0 ? '+' : ''; var cls = d > 0 ? 'color:var(--green-light)' : d < 0 ? 'color:var(--red)' : '';
+    return '<span style="' + cls + '">' + escHtml(p.name) + ': ' + sign + d + ' р</span>';
+  });
+  preview.innerHTML = lines.join(' &nbsp;|&nbsp; ');
+  preview.style.background = 'var(--green-dark)';
+}
+
 function showFinalScreen() {
   showPage('page-result');
   document.getElementById('final-input-section').style.display = 'block';
   document.getElementById('results-section').style.display = 'none';
   var container = document.getElementById('final-inputs');
   container.innerHTML = '';
-  state.players.forEach(function(p, i) {
-    var row = document.createElement('div');
-    row.className = 'final-row';
-    var lbl = document.createElement('label');
-    lbl.textContent = p.name;
-    var inp = document.createElement('input');
-    inp.type = 'number'; inp.id = 'final-' + i; inp.value = p.currentChips; inp.min = 0; inp.setAttribute('inputmode','numeric');
-    inp.oninput = updateChipsSum;
-    row.appendChild(lbl); row.appendChild(inp);
-    container.appendChild(row);
-  });
-  updateChipsSum();
+  if (state.mode === 'tournament') {
+    var playerOptions = state.players.map(function(p) {
+      return '<option value="' + escHtml(p.name) + '">' + escHtml(p.name) + '</option>';
+    }).join('');
+    var p2PrizeLabel = state.payoutScheme === 'top2' ? ' <span class="place-prize">+' + (state.buyIn * state.place2Mult).toFixed(0) + ' р</span>' : '';
+    container.innerHTML =
+      '<div class="place-row">' +
+        '<span class="place-medal">🥇</span>' +
+        '<span class="place-label">1-е место</span>' +
+        '<select id="place1-select" class="place-select" onchange="updatePrizePreview()">' + playerOptions + '</select>' +
+        '<span class="place-prize">+' + (state.buyIn * (state.players.length - (state.payoutScheme === 'top2' ? state.place2Mult : 0)) - state.buyIn).toFixed(0) + ' р</span>' +
+      '</div>' +
+      (state.payoutScheme === 'top2' ?
+        '<div class="place-row">' +
+          '<span class="place-medal">🥈</span>' +
+          '<span class="place-label">2-е место</span>' +
+          '<select id="place2-select" class="place-select" onchange="updatePrizePreview()">' + playerOptions + '</select>' +
+          p2PrizeLabel +
+        '</div>' : '') +
+      '<div id="prize-preview" class="alert" style="background:var(--green-dark);margin-top:8px"></div>';
+    if (state.players.length > 1 && document.getElementById('place2-select')) {
+      document.getElementById('place2-select').selectedIndex = 1;
+    }
+    updatePrizePreview();
+  } else {
+    state.players.forEach(function(p, i) {
+      var row = document.createElement('div');
+      row.className = 'final-row';
+      var lbl = document.createElement('label');
+      lbl.textContent = p.name;
+      var inp = document.createElement('input');
+      inp.type = 'number'; inp.id = 'final-' + i; inp.value = p.currentChips; inp.min = 0; inp.setAttribute('inputmode','numeric');
+      inp.oninput = updateChipsSum;
+      row.appendChild(lbl); row.appendChild(inp);
+      container.appendChild(row);
+    });
+    updateChipsSum();
+  }
 }
 
 function updateChipsSum() {
@@ -417,33 +539,21 @@ function updateChipsSum() {
     : 'Сумма: <b style="color:#f0a040">' + total + '</b>, нужно ' + invested + ' (разница: ' + (diff>0?'+':'') + diff + ')';
 }
 
-function calculateResults() {
-  var finals = state.players.map(function(p, i) {
-    var el = document.getElementById('final-' + i);
-    var v = parseInt(el.value);
-    // Явная проверка на пустое поле и отрицательное
-    if (el.value === '' || isNaN(v) || v < 0) { showAlert('Введите корректное кол-во фишек для ' + p.name); throw ''; }
-    return v;
-  });
-  // Сохраняем finalChips — явно присваиваем, включая 0
-  state.players.forEach(function(p, i) { p.finalChips = finals[i]; });
-
-  var totalStart = state.players.reduce(function(s,p){return s+p.startChips;},0);
-  var totalFinal = state.players.reduce(function(s,p){return s+p.finalChips;},0);
+function showResultsSection(playerResults) {
+  var sorted = playerResults.slice().sort(function(a,b){ return b.diffRub - a.diffRub; });
   var bi = document.getElementById('chips-balance-info');
-  bi.innerHTML = totalStart !== totalFinal
-    ? 'Вложено: <b>'+totalStart+'</b>, итого: <b>'+totalFinal+'</b> — разница '+(totalFinal-totalStart)
-    : 'Баланс сходится: '+totalFinal+' фишек';
-  bi.style.color = totalStart !== totalFinal ? '#f0a040' : '#60e080';
-
-  var sorted = state.players.slice().sort(function(a,b){return (b.finalChips-b.startChips)-(a.finalChips-a.startChips);});
+  bi.innerHTML = state.mode === 'tournament'
+    ? '🏆 Турнир · Бай-ин ' + state.buyIn + ' р · Пул ' + (state.buyIn * state.players.length) + ' р'
+    : 'Баланс: ' + state.players.reduce(function(s,p){return s+(p.finalChips||0);},0) + ' фишек';
+  bi.style.color = '#60e080';
   document.getElementById('result-tbody').innerHTML = sorted.map(function(p) {
-    var diff = p.finalChips-p.startChips, dR=(diff/state.chipsPerRub).toFixed(2);
-    var cls=diff>0?'pos':diff<0?'neg':'zero', sign=diff>0?'+':'';
-    return '<tr><td><b>'+escHtml(p.name)+'</b></td><td>'+p.startChips+'</td><td>'+p.finalChips+'</td><td class="'+cls+'">'+sign+dR+' р</td></tr>';
+    var cls = p.diffRub > 0.005 ? 'pos' : p.diffRub < -0.005 ? 'neg' : 'zero';
+    var sign = p.diffRub > 0 ? '+' : '';
+    var startVal = state.mode === 'tournament' ? state.buyIn + ' р' : p.startChips;
+    var finalVal = state.mode === 'tournament' ? (p.diffRub >= 0 ? (state.buyIn + p.diffRub) + ' р' : '—') : (p.finalChips !== null ? p.finalChips : '—');
+    return '<tr><td><b>'+escHtml(p.name)+'</b></td><td>'+startVal+'</td><td>'+finalVal+'</td><td class="'+cls+'">'+sign+p.diffRub.toFixed(2)+' р</td></tr>';
   }).join('');
-
-  var txs = minimizeTransactions(state.players.map(function(p){return {name:p.name,balance:(p.finalChips-p.startChips)/state.chipsPerRub};}));
+  var txs = minimizeTransactions(playerResults.map(function(p){ return {name:p.name, balance:p.diffRub}; }));
   var txList = document.getElementById('transactions-list');
   txList.innerHTML = '';
   if (!txs.length) { txList.innerHTML = '<li>Все в расчёте!</li>'; }
@@ -455,6 +565,43 @@ function calculateResults() {
   document.getElementById('final-input-section').style.display = 'none';
   document.getElementById('results-section').style.display = 'block';
   if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+}
+
+function calculateResults() {
+  if (state.mode === 'tournament') {
+    var p1Name = document.getElementById('place1-select').value;
+    var p2Name = state.payoutScheme === 'top2' ? document.getElementById('place2-select').value : null;
+    if (p2Name && p1Name === p2Name) { showAlert('1-е и 2-е место не может быть один игрок!'); return; }
+    var pool = state.buyIn * state.players.length;
+    var prize2 = state.payoutScheme === 'top2' ? state.buyIn * state.place2Mult : 0;
+    var prize1 = pool - prize2;
+    var results = state.players.map(function(p) {
+      var prize = p.name === p1Name ? prize1 : p.name === p2Name ? prize2 : 0;
+      p.diffRub = prize - state.buyIn;
+      p.finalChips = prize;
+      return p;
+    });
+    showResultsSection(results);
+  } else {
+    var finals = state.players.map(function(p, i) {
+      var el = document.getElementById('final-' + i);
+      var v = parseInt(el.value);
+      if (el.value === '' || isNaN(v) || v < 0) { showAlert('Введите корректное кол-во фишек для ' + p.name); throw ''; }
+      return v;
+    });
+    state.players.forEach(function(p, i) {
+      p.finalChips = finals[i];
+      p.diffRub = (finals[i] - p.startChips) / state.chipsPerRub;
+    });
+    var totalStart = state.players.reduce(function(s,p){return s+p.startChips;},0);
+    var totalFinal = state.players.reduce(function(s,p){return s+p.finalChips;},0);
+    var bi = document.getElementById('chips-balance-info');
+    bi.innerHTML = totalStart !== totalFinal
+      ? 'Вложено: <b>'+totalStart+'</b>, итого: <b>'+totalFinal+'</b> — разница '+(totalFinal-totalStart)
+      : 'Баланс сходится: '+totalFinal+' фишек';
+    bi.style.color = totalStart !== totalFinal ? '#f0a040' : '#60e080';
+    showResultsSection(state.players);
+  }
 }
 
 function minimizeTransactions(balances) {
@@ -489,19 +636,20 @@ function saveAndNewGame() {
 
   sbFetch('games', {
     method: 'POST',
-    body: JSON.stringify({ name: state.gameName, date_str: formatDate(new Date()), chips_per_rub: state.chipsPerRub })
+    body: JSON.stringify({ name: state.gameName, date_str: formatDate(new Date()), chips_per_rub: state.chipsPerRub, mode: state.mode, buy_in: state.buyIn })
   }).then(function(games) {
     var gameId = games[0].id;
     var playersData = state.players.map(function(p) {
       // ИСПРАВЛЕНО: используем Number() для явного приведения типа
       // p.finalChips гарантированно число (включая 0) после calculateResults
       var fc = (p.finalChips !== null && p.finalChips !== undefined) ? p.finalChips : p.currentChips;
+      var diffRub = (p.diffRub !== null && p.diffRub !== undefined) ? p.diffRub : (fc - p.startChips) / state.chipsPerRub;
       return {
         game_id: gameId,
         name: p.name,
-        start_chips: p.startChips,
-        final_chips: fc,
-        diff_rub: (fc - p.startChips) / state.chipsPerRub
+        start_chips: state.mode === 'tournament' ? state.buyIn : p.startChips,
+        final_chips: state.mode === 'tournament' ? (p.diffRub >= 0 ? state.buyIn + p.diffRub : 0) : fc,
+        diff_rub: diffRub
       };
     });
     return sbFetch('game_players', { method: 'POST', body: JSON.stringify(playersData) });
