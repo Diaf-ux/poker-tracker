@@ -357,6 +357,11 @@ function setGameMode(mode) {
 function updatePayoutScheme() {
   var scheme = document.getElementById('payout-scheme').value;
   document.getElementById('top2-fields').style.display = scheme === 'top2' ? '' : 'none';
+  if (scheme === 'top2') {
+    var buyIn = parseFloat(document.getElementById('buy-in').value) || 0;
+    var p2el = document.getElementById('place2-prize');
+    if (p2el) p2el.value = buyIn; // sync once when switching
+  }
   updatePayoutPreview();
 }
 
@@ -367,18 +372,18 @@ function updatePayoutPreview() {
   var n = document.getElementById('names-grid').querySelectorAll('input').length || 0;
   var pool = buyIn * n;
   var scheme = document.getElementById('payout-scheme').value;
-  // Sync place2-prize default to buy-in when buy-in changes
   var place2El = document.getElementById('place2-prize');
-  if (place2El && (place2El.dataset.synced !== '1')) {
-    place2El.value = buyIn;
-  }
   var p2 = scheme === 'top2' ? (parseFloat(place2El ? place2El.value : 0) || 0) : 0;
   var p1 = pool - p2;
   var warn = scheme === 'top2' && p2 >= p1 ? ' ⚠️ 2-й получает столько же/больше 1-го!' : '';
-  var net2 = p2 - buyIn;
   var net1 = p1 - buyIn;
-  var txt = '💰 Пул: ' + pool + ' р &nbsp;|&nbsp; 🥇 1-е: ' + (net1 >= 0 ? '+' : '') + net1.toFixed(0) + ' р';
-  if (scheme === 'top2') txt += ' &nbsp;|&nbsp; 🥈 2-е: ' + (net2 >= 0 ? '+' : '') + net2.toFixed(0) + ' р';
+  var net1str = (net1 >= 0 ? '+' : '') + net1.toFixed(0) + ' р';
+  var txt = '💰 Пул: ' + pool + ' р &nbsp;|&nbsp; 🥇 1-е: ' + p1.toFixed(0) + ' р (net ' + net1str + ')';
+  if (scheme === 'top2') {
+    var net2 = p2 - buyIn;
+    var net2str = net2 === 0 ? '±0' : (net2 > 0 ? '+' : '') + net2.toFixed(0) + ' р';
+    txt += ' &nbsp;|&nbsp; 🥈 2-е: ' + p2.toFixed(0) + ' р (net ' + net2str + ')';
+  }
   if (warn) txt += warn;
   preview.innerHTML = txt;
   preview.style.background = warn ? 'var(--red)' : 'var(--green-dark)';
