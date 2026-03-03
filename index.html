@@ -164,8 +164,9 @@ input:focus { border-color: var(--gold); }
           </div>
         </div>
         <div id="top2-fields" style="display:none;margin-bottom:10px">
-          <label>Приз 2-го места (× бай-ин)</label>
-          <input type="number" id="place2-mult" value="1.5" min="0.5" max="5" step="0.5" inputmode="decimal" oninput="updatePayoutPreview()">
+          <label>Приз 2-го места (₽)</label>
+          <input type="number" id="place2-prize" value="200" min="0" inputmode="numeric" oninput="updatePayoutPreview()">
+          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px">Совет: введи бай-ин — 2-й выходит в ноль. Меньше — символическая компенсация.</div>
         </div>
         <div id="payout-preview" class="alert" style="background:var(--green-dark);color:var(--text);display:none"></div>
       </div>
@@ -293,7 +294,7 @@ function initApp() {
   }
 }
 
-var state = { players: [], chipsPerRub: 10, gameName: '', mode: 'cash', buyIn: 0, payoutScheme: 'winner_all', place2Mult: 1.5 };
+var state = { players: [], chipsPerRub: 10, gameName: '', mode: 'cash', buyIn: 0, payoutScheme: 'winner_all', place2Prize: 0 };
 var activePlayerFilter = null;
 var allGamesCache = null;
 var paymentsCache = null;
@@ -366,12 +367,21 @@ function updatePayoutPreview() {
   var n = document.getElementById('names-grid').querySelectorAll('input').length || 0;
   var pool = buyIn * n;
   var scheme = document.getElementById('payout-scheme').value;
-  var mult = parseFloat(document.getElementById('place2-mult') ? document.getElementById('place2-mult').value : 1.5) || 1.5;
-  var p2 = scheme === 'top2' ? buyIn * mult : 0;
+  // Sync place2-prize default to buy-in when buy-in changes
+  var place2El = document.getElementById('place2-prize');
+  if (place2El && (place2El.dataset.synced !== '1')) {
+    place2El.value = buyIn;
+  }
+  var p2 = scheme === 'top2' ? (parseFloat(place2El ? place2El.value : 0) || 0) : 0;
   var p1 = pool - p2;
-  var txt = '💰 Пул: ' + pool + ' р &nbsp;|&nbsp; 🥇 1-е: +' + (p1 - buyIn).toFixed(0) + ' р';
-  if (scheme === 'top2') txt += ' &nbsp;|&nbsp; 🥈 2-е: +' + (p2 - buyIn).toFixed(0) + ' р';
+  var warn = scheme === 'top2' && p2 >= p1 ? ' ⚠️ 2-й получает столько же/больше 1-го!' : '';
+  var net2 = p2 - buyIn;
+  var net1 = p1 - buyIn;
+  var txt = '💰 Пул: ' + pool + ' р &nbsp;|&nbsp; 🥇 1-е: ' + (net1 >= 0 ? '+' : '') + net1.toFixed(0) + ' р';
+  if (scheme === 'top2') txt += ' &nbsp;|&nbsp; 🥈 2-е: ' + (net2 >= 0 ? '+' : '') + net2.toFixed(0) + ' р';
+  if (warn) txt += warn;
   preview.innerHTML = txt;
+  preview.style.background = warn ? 'var(--red)' : 'var(--green-dark)';
   preview.style.display = pool > 0 ? '' : 'none';
 }
 
@@ -387,7 +397,8 @@ function startGame() {
   if (state.mode === 'tournament') {
     state.buyIn = parseFloat(document.getElementById('buy-in').value) || 500;
     state.payoutScheme = document.getElementById('payout-scheme').value;
-    state.place2Mult = parseFloat(document.getElementById('place2-mult') ? document.getElementById('place2-mult').value : 1.5) || 1.5;
+    var p2el = document.getElementById('place2-prize');
+    state.place2Prize = state.payoutScheme === 'top2' ? (parseFloat(p2el ? p2el.value : state.buyIn) || state.buyIn) : 0;
     state.chipsPerRub = 1;
   } else {
     state.chipsPerRub = parseFloat(document.getElementById('chips-per-rub').value) || 10;
@@ -469,7 +480,7 @@ function updatePrizePreview() {
   var p2 = p2sel ? p2sel.value : null;
   if (p1 === p2 && p2 !== null) { preview.innerHTML = '⚠️ 1-е и 2-е место — один игрок!'; preview.style.background='var(--red)'; return; }
   var pool = state.buyIn * state.players.length;
-  var prize2 = state.payoutScheme === 'top2' ? state.buyIn * state.place2Mult : 0;
+  var prize2 = state.payoutScheme === 'top2' ? state.place2Prize : 0;
   var prize1 = pool - prize2;
   var lines = state.players.map(function(p) {
     var d = p.name === p1 ? prize1 - state.buyIn : p.name === p2 ? prize2 - state.buyIn : -state.buyIn;
@@ -490,13 +501,13 @@ function showFinalScreen() {
     var playerOptions = state.players.map(function(p) {
       return '<option value="' + escHtml(p.name) + '">' + escHtml(p.name) + '</option>';
     }).join('');
-    var p2PrizeLabel = state.payoutScheme === 'top2' ? ' <span class="place-prize">+' + (state.buyIn * state.place2Mult).toFixed(0) + ' р</span>' : '';
+    var p2PrizeLabel = state.payoutScheme === 'top2' ? ' <span class="place-prize">+' + (state.place2Prize - state.buyIn).toFixed(0) + ' р</span>' : '';
     container.innerHTML =
       '<div class="place-row">' +
         '<span class="place-medal">🥇</span>' +
         '<span class="place-label">1-е место</span>' +
         '<select id="place1-select" class="place-select" onchange="updatePrizePreview()">' + playerOptions + '</select>' +
-        '<span class="place-prize">+' + (state.buyIn * (state.players.length - (state.payoutScheme === 'top2' ? state.place2Mult : 0)) - state.buyIn).toFixed(0) + ' р</span>' +
+        '<span class="place-prize">+' + ((state.buyIn * state.players.length - (state.payoutScheme === 'top2' ? state.place2Prize : 0)) - state.buyIn).toFixed(0) + ' р</span>' +
       '</div>' +
       (state.payoutScheme === 'top2' ?
         '<div class="place-row">' +
@@ -573,7 +584,7 @@ function calculateResults() {
     var p2Name = state.payoutScheme === 'top2' ? document.getElementById('place2-select').value : null;
     if (p2Name && p1Name === p2Name) { showAlert('1-е и 2-е место не может быть один игрок!'); return; }
     var pool = state.buyIn * state.players.length;
-    var prize2 = state.payoutScheme === 'top2' ? state.buyIn * state.place2Mult : 0;
+    var prize2 = state.payoutScheme === 'top2' ? state.place2Prize : 0;
     var prize1 = pool - prize2;
     var results = state.players.map(function(p) {
       var prize = p.name === p1Name ? prize1 : p.name === p2Name ? prize2 : 0;
