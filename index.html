@@ -102,6 +102,10 @@ input:focus { border-color: var(--gold); }
 .stat-val { font-size: 1.5rem; font-weight: 700; color: var(--gold); }
 .stat-label { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
 .tg-bottom-spacer { height: 80px; }
+.filter-pills { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 10px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.filter-pills::-webkit-scrollbar { display: none; }
+.filter-pill { flex-shrink: 0; padding: 6px 16px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; cursor: pointer; border: 1.5px solid var(--card-border); background: var(--bg); color: var(--text-muted); transition: all 0.15s; min-height: 34px; display: inline-flex; align-items: center; }
+.filter-pill.active { background: var(--gold); color: #1a1a00; border-color: var(--gold); }
 .loading { text-align: center; color: var(--text-muted); padding: 24px; font-size: 0.9rem; }
 .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--card-border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -264,9 +268,11 @@ function initApp() {
 var state = { players: [], chipsPerRub: 10, gameName: '' };
 var activePlayerFilter = null;
 var allGamesCache = null;
+var paymentsCache = null;
+var debtsDebounceTimer = null;
 
 function switchTab(tabId, el) {
-  if (tabId !== 'tab-history') { activePlayerFilter = null; allGamesCache = null; }
+  if (tabId !== 'tab-history') { activePlayerFilter = null; allGamesCache = null; paymentsCache = null; }
   document.querySelectorAll('.tab-content').forEach(function(t) { t.style.display = 'none'; });
   document.querySelectorAll('.nav-tab').forEach(function(t) { t.classList.remove('active'); });
   document.getElementById(tabId).style.display = 'block';
@@ -576,15 +582,11 @@ function renderHistoryCards(games) {
       })
     : games;
 
-  var filterHtml = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:0 2px;">' +
-    '<span style="color:var(--text-muted);font-size:0.82rem;white-space:nowrap;">👤 Фильтр:</span>' +
-    '<select id="player-filter-select" onchange="setPlayerFilter(this.value)" style="flex:1;background:var(--bg);border:1px solid var(--card-border);color:var(--text);border-radius:8px;padding:7px 10px;font-size:0.85rem;cursor:pointer;">' +
-    '<option value="">Все игроки</option>' +
+  var filterHtml = '<div class="filter-pills">' +
+    '<button class="filter-pill'+(activePlayerFilter===null?' active':'')+'" onclick="setPlayerFilter(null)">Все</button>' +
     players.map(function(n) {
-      return '<option value="'+escHtml(n)+'"'+(activePlayerFilter===n?' selected':'')+'>'+escHtml(n)+'</option>';
+      return '<button class="filter-pill'+(activePlayerFilter===n?' active':'')+'" onclick="setPlayerFilter(''+escHtml(n)+'')">'+escHtml(n)+'</button>';
     }).join('') +
-    '</select>' +
-    (activePlayerFilter ? '<span style="color:var(--text-muted);font-size:0.78rem;white-space:nowrap;">'+filtered.length+' игр</span>' : '') +
     '</div>';
 
   if (!filtered.length) {
@@ -654,13 +656,26 @@ function aggregateBalances(players) {
   return Object.values(agg);
 }
 
+function getPayments() {
+  if (paymentsCache) return Promise.resolve(paymentsCache);
+  return sbFetch('payments?select=from_name,to_name,amount').then(function(p) {
+    paymentsCache = p || [];
+    return paymentsCache;
+  });
+}
+
 function updateSelectedDebts() {
+  clearTimeout(debtsDebounceTimer);
+  debtsDebounceTimer = setTimeout(_doUpdateDebts, 150);
+}
+
+function _doUpdateDebts() {
   var selected = Array.from(document.querySelectorAll('.game-checkbox:checked')).map(function(cb){ return cb.dataset.id; });
   var panel = document.getElementById('debts-panel');
   if (!selected.length) { if (panel) panel.remove(); return; }
   Promise.all([
     sbFetch('game_players?game_id=in.(' + selected.join(',') + ')&select=name,diff_rub'),
-    sbFetch('payments?select=from_name,to_name,amount')
+    getPayments()
   ]).then(function(results) {
     var players = results[0];
     var allPayments = results[1] || [];
@@ -703,6 +718,7 @@ function settleDebt(fromName, toName, amount) {
       method: 'POST',
       body: JSON.stringify({ from_name: fromName, to_name: toName, amount: amount })
     }).then(function() {
+      paymentsCache = null;
       if (tg) tg.HapticFeedback.notificationOccurred('success');
       updateSelectedDebts();
     }).catch(function(e) { showAlert(e.message); });
