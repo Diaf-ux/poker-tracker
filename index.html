@@ -585,7 +585,7 @@ function renderHistoryCards(games) {
   var filterHtml = '<div class="filter-pills">' +
     '<button class="filter-pill'+(activePlayerFilter===null?' active':'')+'" onclick="setPlayerFilter(null)">Все</button>' +
     players.map(function(n) {
-      return '<button class="filter-pill'+(activePlayerFilter===n?' active':'')+'" onclick="setPlayerFilter(''+escHtml(n)+'')">'+escHtml(n)+'</button>';
+      return '<button class="filter-pill'+(activePlayerFilter===n?' active':'')+'" onclick="setPlayerFilter(this.dataset.n)" data-n="'+escHtml(n)+'">'+escHtml(n)+'</button>';
     }).join('') +
     '</div>';
 
