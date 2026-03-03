@@ -102,38 +102,6 @@ input:focus { border-color: var(--gold); }
 .stat-val { font-size: 1.5rem; font-weight: 700; color: var(--gold); }
 .stat-label { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
 .tg-bottom-spacer { height: 80px; }
-.blind-timer-card { background: var(--card-bg); border: 1.5px solid var(--card-border); border-radius: 14px; padding: 14px 16px; margin: 0 12px 14px; max-width: 600px; margin-left: auto; margin-right: auto; }
-.blind-level-title { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
-.blind-values { font-size: 1.5rem; font-weight: 800; color: var(--gold); letter-spacing: 0.02em; }
-.blind-countdown { font-size: 2rem; font-weight: 800; font-variant-numeric: tabular-nums; margin: 4px 0; }
-.blind-countdown.warn { color: #f0a040; }
-.blind-countdown.danger { color: var(--red); }
-.blind-progress-bar { height: 6px; background: var(--bg); border-radius: 3px; margin: 8px 0; overflow: hidden; }
-.blind-progress-fill { height: 100%; background: var(--green-light); border-radius: 3px; transition: width 0.9s linear; }
-.blind-progress-fill.warn { background: #f0a040; }
-.blind-progress-fill.danger { background: var(--red); }
-.blind-controls { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
-.blind-ctrl-btn { flex: 1; padding: 9px 0; border: 1px solid var(--card-border); border-radius: 8px; background: var(--bg); color: var(--text); font-size: 0.9rem; cursor: pointer; font-weight: 600; }
-.blind-ctrl-btn.play { background: var(--green-dark); border-color: var(--green-light); color: var(--green-light); flex: 2; }
-.blind-ctrl-btn.active-pulse { animation: pulse 0.5s ease; }
-.blind-next-info { font-size: 0.75rem; color: var(--text-muted); text-align: center; margin-top: 6px; }
-.place-picker-section { margin-bottom: 14px; }
-.place-picker-label { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1rem; margin-bottom: 10px; color: var(--gold); }
-.place-picker-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-.place-player-btn { padding: 10px 16px; border-radius: 10px; border: 1.5px solid var(--card-border); background: var(--bg); color: var(--text); font-size: 0.88rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
-.place-player-btn.selected-1 { border-color: var(--gold); background: rgba(212,175,55,0.15); color: var(--gold); }
-.place-player-btn.selected-2 { border-color: #c0c0c0; background: rgba(192,192,192,0.12); color: #c0c0c0; }
-.place-player-btn:disabled { opacity: 0.4; cursor: default; }
-.timer-toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; }
-.toggle-switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
-.toggle-switch input { opacity: 0; width: 0; height: 0; }
-.toggle-slider { position: absolute; cursor: pointer; inset: 0; background: var(--bg); border: 1px solid var(--card-border); border-radius: 24px; transition: 0.2s; }
-.toggle-slider:before { content: ''; position: absolute; width: 18px; height: 18px; left: 2px; top: 2px; background: var(--text-muted); border-radius: 50%; transition: 0.2s; }
-.toggle-switch input:checked + .toggle-slider { background: var(--green-dark); border-color: var(--green-light); }
-.toggle-switch input:checked + .toggle-slider:before { transform: translateX(20px); background: var(--green-light); }
-.level-duration-btns { display: flex; gap: 6px; margin-top: 8px; }
-.dur-btn { flex: 1; padding: 8px 0; border: 1px solid var(--card-border); border-radius: 8px; background: var(--bg); color: var(--text-muted); font-size: 0.82rem; font-weight: 600; cursor: pointer; }
-.dur-btn.active { background: var(--green-dark); border-color: var(--green-light); color: var(--green-light); }
 .mode-toggle { display: flex; margin-bottom: 14px; border-radius: 10px; overflow: hidden; border: 1.5px solid var(--card-border); }
 .mode-btn { flex: 1; padding: 10px; font-size: 0.88rem; font-weight: 600; border: none; cursor: pointer; background: var(--bg); color: var(--text-muted); transition: all 0.15s; min-height: 40px; }
 .mode-btn.active { background: var(--gold); color: #1a1a00; }
@@ -200,24 +168,6 @@ input:focus { border-color: var(--gold); }
           <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px">Совет: введи бай-ин — 2-й выходит в ноль. Меньше — символическая компенсация.</div>
         </div>
         <div id="payout-preview" class="alert" style="background:var(--green-dark);color:var(--text);display:none;margin-top:10px"></div>
-        <div style="margin-top:14px;border-top:1px solid var(--card-border);padding-top:12px">
-          <div class="timer-toggle-row">
-            <span style="font-weight:600;font-size:0.92rem;">⏱ Таймер блайндов</span>
-            <label class="toggle-switch">
-              <input type="checkbox" id="timer-enabled" onchange="toggleTimerSetup()">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <div id="timer-setup-fields" style="display:none">
-            <label>Длительность уровня</label>
-            <div class="level-duration-btns">
-              <button class="dur-btn active" data-min="10" onclick="setLevelDuration(10,this)">10 мин</button>
-              <button class="dur-btn" data-min="15" onclick="setLevelDuration(15,this)">15 мин</button>
-              <button class="dur-btn" data-min="20" onclick="setLevelDuration(20,this)">20 мин</button>
-              <button class="dur-btn" data-min="30" onclick="setLevelDuration(30,this)">30 мин</button>
-            </div>
-          </div>
-        </div>
       </div>
       <div><label>Название игры</label><input type="text" id="game-name" placeholder="Напр: Пятница у Васи"></div>
     </div>
@@ -247,24 +197,6 @@ input:focus { border-color: var(--gold); }
     <button class="btn btn-gold" style="flex:2" onclick="showFinalScreen()">&#127937; Завершить</button>
     <button class="btn btn-blue" style="flex:1" onclick="goBackSetup()">&#9881;&#65039;</button>
   </div>
-  <div id="blind-timer-card" style="display:none" class="blind-timer-card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-      <div>
-        <div class="blind-level-title" id="bt-level-label">Уровень 1</div>
-        <div class="blind-values" id="bt-blinds">25 / 50</div>
-      </div>
-      <div style="text-align:right">
-        <div class="blind-countdown" id="bt-countdown">15:00</div>
-      </div>
-    </div>
-    <div class="blind-progress-bar"><div class="blind-progress-fill" id="bt-progress" style="width:100%"></div></div>
-    <div class="blind-controls">
-      <button class="blind-ctrl-btn" onclick="blindLevelChange(-1)" title="Предыдущий уровень">◀</button>
-      <button class="blind-ctrl-btn play" id="bt-play-btn" onclick="toggleBlindTimer()">▶ Старт</button>
-      <button class="blind-ctrl-btn" onclick="blindLevelChange(1)" title="Следующий уровень">▶▶</button>
-    </div>
-    <div class="blind-next-info" id="bt-next-info"></div>
-  </div>
   <div id="players-grid" class="players-grid"></div>
   <div class="tg-bottom-spacer"></div>
 </div>
@@ -273,11 +205,11 @@ input:focus { border-color: var(--gold); }
   <h1>&#127942; Итоги</h1>
   <div style="max-width:600px;margin:0 auto;padding:0 12px">
     <div class="section" id="final-input-section">
-      <h2 id="final-section-title">&#127920; Итоговые фишки</h2>
-      <div class="alert" id="final-section-hint">Пересчитайте фишки и введите финальное количество.</div>
+      <h2>&#127920; Итоговые фишки</h2>
+      <div class="alert">Пересчитайте фишки и введите финальное количество.</div>
       <div id="final-inputs"></div>
       <div id="chips-sum-live" style="text-align:right;font-size:0.82rem;color:var(--text-muted);margin-bottom:10px"></div>
-      <button class="btn btn-gold btn-full" id="final-calc-btn" onclick="calculateResults()">&#128202; Рассчитать долги</button>
+      <button class="btn btn-gold btn-full" onclick="calculateResults()">&#128202; Рассчитать долги</button>
     </div>
     <div id="results-section" style="display:none">
       <div class="section">
@@ -362,101 +294,6 @@ function initApp() {
 }
 
 var state = { players: [], chipsPerRub: 10, gameName: '', mode: 'cash', buyIn: 0, payoutScheme: 'winner_all', place2Prize: 0 };
-
-var BLIND_SCHEDULE = [
-  {sb:5,bb:10},{sb:10,bb:20},{sb:15,bb:30},{sb:25,bb:50},{sb:50,bb:100},
-  {sb:75,bb:150},{sb:100,bb:200},{sb:150,bb:300},{sb:200,bb:400},
-  {sb:300,bb:600},{sb:400,bb:800},{sb:600,bb:1200},{sb:800,bb:1600}
-];
-var bt = { enabled: false, levelDuration: 10, level: 0, secsLeft: 600, running: false, tickId: null };
-
-function toggleTimerSetup() {
-  bt.enabled = document.getElementById('timer-enabled').checked;
-  document.getElementById('timer-setup-fields').style.display = bt.enabled ? '' : 'none';
-}
-
-function setLevelDuration(min, el) {
-  bt.levelDuration = min;
-  document.querySelectorAll('.dur-btn').forEach(function(b){ b.classList.remove('active'); });
-  el.classList.add('active');
-}
-
-function buildBlindSchedule(startChips) {
-  var base = Math.max(5, Math.round(startChips * 0.02 / 5) * 5);
-  var levels = [];
-  var sb = base;
-  while (sb < startChips * 2) {
-    levels.push({ sb: sb, bb: sb * 2 });
-    sb = sb < 25 ? sb * 2 : (sb < 100 ? Math.round(sb * 1.5 / 5) * 5 : Math.round(sb * 1.5 / 25) * 25);
-  }
-  return levels.length >= 3 ? levels : BLIND_SCHEDULE;
-}
-
-function initBlindTimer(startChips) {
-  bt.schedule = buildBlindSchedule(startChips);
-  bt.level = 0;
-  bt.secsLeft = bt.levelDuration * 60;
-  bt.running = false;
-  if (bt.tickId) { clearInterval(bt.tickId); bt.tickId = null; }
-  renderBlindTimer();
-}
-
-function renderBlindTimer() {
-  var card = document.getElementById('blind-timer-card');
-  if (!card) return;
-  card.style.display = bt.enabled ? '' : 'none';
-  if (!bt.enabled) return;
-  var lvl = bt.schedule[bt.level] || bt.schedule[bt.schedule.length - 1];
-  var total = bt.levelDuration * 60;
-  var pct = (bt.secsLeft / total) * 100;
-  var m = Math.floor(bt.secsLeft / 60), s = bt.secsLeft % 60;
-  var timeStr = m + ':' + (s < 10 ? '0' : '') + s;
-  var alertClass = bt.secsLeft <= 30 ? 'danger' : bt.secsLeft <= 120 ? 'warn' : '';
-  document.getElementById('bt-level-label').textContent = 'Уровень ' + (bt.level + 1) + ' из ' + bt.schedule.length;
-  document.getElementById('bt-blinds').textContent = lvl.sb + ' / ' + lvl.bb;
-  document.getElementById('bt-countdown').className = 'blind-countdown' + (alertClass ? ' ' + alertClass : '');
-  document.getElementById('bt-countdown').textContent = timeStr;
-  var fill = document.getElementById('bt-progress');
-  fill.style.width = pct + '%';
-  fill.className = 'blind-progress-fill' + (alertClass ? ' ' + alertClass : '');
-  document.getElementById('bt-play-btn').textContent = bt.running ? '⏸ Пауза' : '▶ Старт';
-  var nextLvl = bt.schedule[bt.level + 1];
-  document.getElementById('bt-next-info').textContent = nextLvl
-    ? 'Следующий уровень: ' + nextLvl.sb + ' / ' + nextLvl.bb
-    : '🏆 Последний уровень';
-}
-
-function toggleBlindTimer() {
-  if (bt.running) {
-    bt.running = false;
-    clearInterval(bt.tickId); bt.tickId = null;
-  } else {
-    bt.running = true;
-    bt.tickId = setInterval(function() {
-      if (!bt.running) return;
-      bt.secsLeft--;
-      if (bt.secsLeft <= 0) {
-        blindLevelChange(1, true);
-      } else {
-        renderBlindTimer();
-      }
-    }, 1000);
-  }
-  renderBlindTimer();
-}
-
-function blindLevelChange(dir, auto) {
-  var newLevel = bt.level + dir;
-  if (newLevel < 0 || newLevel >= bt.schedule.length) return;
-  bt.level = newLevel;
-  bt.secsLeft = bt.levelDuration * 60;
-  if (auto) {
-    if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('warning');
-    var lvl = bt.schedule[bt.level];
-    showAlert('⬆️ Уровень ' + (bt.level + 1) + '  ·  Блайнды ' + lvl.sb + ' / ' + lvl.bb);
-  }
-  renderBlindTimer();
-}
 var activePlayerFilter = null;
 var allGamesCache = null;
 var paymentsCache = null;
@@ -583,14 +420,6 @@ function startGame() {
   state.players = names.map(function(name) {
     return { name: name, startChips: chipsPerPlayer, currentChips: chipsPerPlayer, finalChips: null, diffRub: null, history: ['Старт: +' + chipsPerPlayer] };
   });
-  if (state.mode === 'tournament' && bt.enabled) {
-    var chips = parseInt(document.getElementById('chips-per-player').value) || 500;
-    initBlindTimer(chips);
-  } else {
-    bt.enabled = false;
-    var card = document.getElementById('blind-timer-card');
-    if (card) card.style.display = 'none';
-  }
   showPage('page-game');
   renderGamePage();
 }
@@ -657,76 +486,22 @@ function updateHistoryLog(i) {
 function updatePrizePreview() {
   var preview = document.getElementById('prize-preview');
   if (!preview) return;
-  var p1 = tournamentPlaces ? tournamentPlaces.place1 : null;
-  var p2 = tournamentPlaces ? tournamentPlaces.place2 : null;
+  var p1sel = document.getElementById('place1-select');
+  var p2sel = document.getElementById('place2-select');
+  if (!p1sel) return;
+  var p1 = p1sel.value;
+  var p2 = p2sel ? p2sel.value : null;
+  if (p1 === p2 && p2 !== null) { preview.innerHTML = '⚠️ 1-е и 2-е место — один игрок!'; preview.style.background='var(--red)'; return; }
   var pool = state.buyIn * state.players.length;
   var prize2 = state.payoutScheme === 'top2' ? state.place2Prize : 0;
   var prize1 = pool - prize2;
-  if (!p1) { preview.innerHTML = 'Выберите победителей выше'; preview.style.background = 'var(--card-bg)'; return; }
   var lines = state.players.map(function(p) {
     var d = p.name === p1 ? prize1 - state.buyIn : p.name === p2 ? prize2 - state.buyIn : -state.buyIn;
-    var sign = d >= 0 ? '+' : ''; var cls = d > 0 ? 'color:var(--green-light)' : d < 0 ? 'color:var(--red)' : 'color:var(--text-muted)';
+    var sign = d >= 0 ? '+' : ''; var cls = d > 0 ? 'color:var(--green-light)' : d < 0 ? 'color:var(--red)' : '';
     return '<span style="' + cls + '">' + escHtml(p.name) + ': ' + sign + d + ' р</span>';
   });
   preview.innerHTML = lines.join(' &nbsp;|&nbsp; ');
   preview.style.background = 'var(--green-dark)';
-}
-
-var tournamentPlaces = { place1: null, place2: null };
-
-function selectPlace(name, slot) {
-  // Toggle off if already selected for this slot
-  if (tournamentPlaces['place' + slot] === name) {
-    tournamentPlaces['place' + slot] = null;
-  } else {
-    // Remove from other slot if already there
-    if (slot === 1 && tournamentPlaces.place2 === name) tournamentPlaces.place2 = null;
-    if (slot === 2 && tournamentPlaces.place1 === name) tournamentPlaces.place1 = null;
-    tournamentPlaces['place' + slot] = name;
-  }
-  renderPlacePicker();
-  updatePrizePreview();
-}
-
-function renderPlacePicker() {
-  var container = document.getElementById('final-inputs');
-  if (!container) return;
-  var pool = state.buyIn * state.players.length;
-  var prize2 = state.payoutScheme === 'top2' ? state.place2Prize : 0;
-  var prize1 = pool - prize2;
-  var net1 = prize1 - state.buyIn;
-  var net2 = prize2 - state.buyIn;
-
-  var html = '<div class="place-picker-section">';
-  html += '<div class="place-picker-label"><span>🥇</span><span>1-е место</span><span style="color:var(--green-light);font-size:0.85rem;font-weight:700">net +' + net1.toFixed(0) + ' р</span></div>';
-  html += '<div class="place-picker-grid">';
-  state.players.forEach(function(p) {
-    var cls = 'place-player-btn';
-    var disabled = '';
-    if (tournamentPlaces.place1 === p.name) cls += ' selected-1';
-    else if (tournamentPlaces.place2 === p.name) { cls += ' selected-2'; disabled = 'disabled'; }
-    html += '<button class="' + cls + '" ' + disabled + ' onclick="selectPlace('' + escHtml(p.name) + '', 1)">' + escHtml(p.name) + '</button>';
-  });
-  html += '</div></div>';
-
-  if (state.payoutScheme === 'top2') {
-    html += '<div class="place-picker-section">';
-    var net2str = net2 >= 0 ? '+' + net2.toFixed(0) : net2.toFixed(0);
-    html += '<div class="place-picker-label"><span>🥈</span><span>2-е место</span><span style="color:#c0c0c0;font-size:0.85rem;font-weight:700">net ' + net2str + ' р</span></div>';
-    html += '<div class="place-picker-grid">';
-    state.players.forEach(function(p) {
-      var cls = 'place-player-btn';
-      var disabled = '';
-      if (tournamentPlaces.place2 === p.name) cls += ' selected-2';
-      else if (tournamentPlaces.place1 === p.name) { cls += ' selected-1'; disabled = 'disabled'; }
-      html += '<button class="' + cls + '" ' + disabled + ' onclick="selectPlace('' + escHtml(p.name) + '', 2)">' + escHtml(p.name) + '</button>';
-    });
-    html += '</div></div>';
-  }
-
-  html += '<div id="prize-preview" class="alert" style="background:var(--green-dark);margin-top:10px"></div>';
-  container.innerHTML = html;
-  updatePrizePreview();
 }
 
 function showFinalScreen() {
@@ -736,17 +511,30 @@ function showFinalScreen() {
   var container = document.getElementById('final-inputs');
   container.innerHTML = '';
   if (state.mode === 'tournament') {
-    document.getElementById('final-section-title').innerHTML = '🏆 Кто победил?';
-    document.getElementById('final-section-hint').textContent = 'Выберите победителей турнира. Остальные теряют бай-ин.';
-    document.getElementById('final-calc-btn').textContent = '📊 Рассчитать призы';
-    document.getElementById('chips-sum-live').style.display = 'none';
-    tournamentPlaces = { place1: null, place2: null };
-    renderPlacePicker();
+    var playerOptions = state.players.map(function(p) {
+      return '<option value="' + escHtml(p.name) + '">' + escHtml(p.name) + '</option>';
+    }).join('');
+    var p2PrizeLabel = state.payoutScheme === 'top2' ? ' <span class="place-prize">+' + (state.place2Prize - state.buyIn).toFixed(0) + ' р</span>' : '';
+    container.innerHTML =
+      '<div class="place-row">' +
+        '<span class="place-medal">🥇</span>' +
+        '<span class="place-label">1-е место</span>' +
+        '<select id="place1-select" class="place-select" onchange="updatePrizePreview()">' + playerOptions + '</select>' +
+        '<span class="place-prize">+' + ((state.buyIn * state.players.length - (state.payoutScheme === 'top2' ? state.place2Prize : 0)) - state.buyIn).toFixed(0) + ' р</span>' +
+      '</div>' +
+      (state.payoutScheme === 'top2' ?
+        '<div class="place-row">' +
+          '<span class="place-medal">🥈</span>' +
+          '<span class="place-label">2-е место</span>' +
+          '<select id="place2-select" class="place-select" onchange="updatePrizePreview()">' + playerOptions + '</select>' +
+          p2PrizeLabel +
+        '</div>' : '') +
+      '<div id="prize-preview" class="alert" style="background:var(--green-dark);margin-top:8px"></div>';
+    if (state.players.length > 1 && document.getElementById('place2-select')) {
+      document.getElementById('place2-select').selectedIndex = 1;
+    }
+    updatePrizePreview();
   } else {
-    document.getElementById('final-section-title').innerHTML = '&#127920; Итоговые фишки';
-    document.getElementById('final-section-hint').textContent = 'Пересчитайте фишки и введите финальное количество.';
-    document.getElementById('final-calc-btn').textContent = '📊 Рассчитать долги';
-    document.getElementById('chips-sum-live').style.display = '';
     state.players.forEach(function(p, i) {
       var row = document.createElement('div');
       row.className = 'final-row';
@@ -805,10 +593,9 @@ function showResultsSection(playerResults) {
 
 function calculateResults() {
   if (state.mode === 'tournament') {
-    var p1Name = tournamentPlaces.place1;
-    var p2Name = state.payoutScheme === 'top2' ? tournamentPlaces.place2 : null;
-    if (!p1Name) { showAlert('Выберите победителя (1-е место)!'); return; }
-    if (state.payoutScheme === 'top2' && !p2Name) { showAlert('Выберите игрока на 2-е место!'); return; }
+    var p1Name = document.getElementById('place1-select').value;
+    var p2Name = state.payoutScheme === 'top2' ? document.getElementById('place2-select').value : null;
+    if (p2Name && p1Name === p2Name) { showAlert('1-е и 2-е место не может быть один игрок!'); return; }
     var pool = state.buyIn * state.players.length;
     var prize2 = state.payoutScheme === 'top2' ? state.place2Prize : 0;
     var prize1 = pool - prize2;
@@ -1157,7 +944,6 @@ function showPage(id) {
 }
 function goBackSetup() { showPage('page-setup'); }
 function newGame() {
-  if (bt.tickId) { clearInterval(bt.tickId); bt.tickId = null; bt.running = false; }
   showPage('page-setup');
   document.querySelectorAll('.tab-content').forEach(function(t){t.style.display='none';});
   document.querySelectorAll('.nav-tab').forEach(function(t){t.classList.remove('active');});
