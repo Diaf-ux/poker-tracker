@@ -1,7 +1,9 @@
 ## TODO
 - [x] refactor :))
-- [ ] fix transactions calculation
-    - [ ] add database retries
-    - [ ] add buttons "Посчитать долги за выбранные игры" и "Выбрать все открытые игры"
+- [x] fix transactions calculation
+    - [x] add database retries
+    - [x] add button "Посчитать долги за выбранные игры"
+    - [x] add button "Выбрать все открытые игры"
+- [ ] fix bug with incorrect game counter display on button when switching between tabs (and other cases?)
 - [ ] fix timer working while sleeping
 - [ ] check if game gets closed when all the transactions completed

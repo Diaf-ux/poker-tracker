@@ -1,7 +1,6 @@
 var activePlayerFilter = null;
 var allGamesCache = null;
 var paymentsCache = null;
-var debtsDebounceTimer = null;
 
 function switchTab(tabId, el) {
     if (tabId !== 'tab-history') { activePlayerFilter = null; allGamesCache = null; paymentsCache = null; }
@@ -88,10 +87,18 @@ function renderHistoryCards(games) {
             return '<button class="filter-pill' + (activePlayerFilter === n ? ' active' : '') +
                 '" onclick="setPlayerFilter(this.dataset.n)" data-n="' + escHtml(n) + '">' + escHtml(n) + '</button>';
         }).join('') + '</div>';
+
+        var hasOpen = (allGamesCache || []).some(function (g) { return !g.is_closed; });
+        var selectOpenedBtn = hasOpen
+            ? '<div id="select-opened-wrap" style="margin-bottom:10px;">' +
+            '<button class="btn btn-blue btn-full btn-sm" onclick="selectAllOpened()">' +
+            '☑️ Выбрать все открытые игры</button></div>'
+            : '';
+
     if (!filtered.length) {
-        div.innerHTML = filterHtml + '<div class="empty-state">Нет игр с этим игроком</div>'; return;
+        div.innerHTML = filterHtml + selectOpenedBtn + '<div class="empty-state">Нет игр с этим игроком</div>';
     }
-    div.innerHTML = filterHtml + filtered.map(function (g) {
+    div.innerHTML = filterHtml + selectOpenedBtn + filtered.map(function (g) {
         var sorted = (g.game_players || []).slice().sort(function (a, b) { return b.diff_rub - a.diff_rub; });
         var badge = g.is_closed
             ? '<span class="badge" style="background:var(--red);color:#fff;margin-left:6px;">Закрыта</span>'
@@ -121,10 +128,32 @@ function renderHistoryCards(games) {
                     '</td><td>' + p.final_chips + '</td><td class="' + cls + '">' + sign + p.diff_rub.toFixed(2) + ' р</td></tr>';
             }).join('') + '</tbody></table></div>';
     }).join('');
+
+    var calcPanel = document.getElementById('calc-debts-panel');
+    if (!calcPanel) {
+        calcPanel = document.createElement('div');
+        calcPanel.id = 'calc-debts-panel';
+        calcPanel.style.cssText = 'position:sticky;bottom:0;background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px 14px 0 0;padding:14px 16px;z-index:199;display:none;max-width:600px;width:100%;';
+        calcPanel.style.margin = '12px auto 0';
+        calcPanel.innerHTML = '<button class="btn btn-gold btn-full" onclick="_doUpdateDebts()">💰 Посчитать долги за выбранные игры</button>';
+        document.getElementById('tab-history').appendChild(calcPanel);
+    }
+
     document.querySelectorAll('.game-checkbox').forEach(function (cb) {
-        cb.addEventListener('change', updateSelectedDebts);
+        cb.addEventListener('change', function () {
+            var anyChecked = document.querySelectorAll('.game-checkbox:checked').length > 0;
+            var debtsPanel = document.getElementById('debts-panel');
+            var calcPanel = document.getElementById('calc-debts-panel');
+            if (!anyChecked) {
+                if (debtsPanel) debtsPanel.remove();
+                if (calcPanel) calcPanel.style.display = 'none';
+            } else {
+                if (calcPanel) calcPanel.style.display = '';
+                if (debtsPanel) debtsPanel.remove(); // сбрасываем старые долги при смене выбора
+            }
+            updateCalcBtnLabel();
+        });
     });
-    updateSelectedDebts();
 }
 
 function renderHistory() {
@@ -165,16 +194,26 @@ function getPayments() {
     });
 }
 
-function updateSelectedDebts() {
-    clearTimeout(debtsDebounceTimer);
-    debtsDebounceTimer = setTimeout(_doUpdateDebts, 150);
-}
-
 function _doUpdateDebts() {
     var selected = Array.from(document.querySelectorAll('.game-checkbox:checked'))
         .map(function (cb) { return cb.dataset.id; });
     var panel = document.getElementById('debts-panel');
     if (!selected.length) { if (panel) panel.remove(); return; }
+
+    // Создать панель если ещё не существует
+    if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'debts-panel';
+        panel.style.cssText = 'position:sticky;bottom:0;background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px 14px 0 0;padding:14px 16px;z-index:200;max-width:600px;width:100%;';
+        panel.style.margin = '12px auto 0';
+        document.getElementById('tab-history').appendChild(panel);
+    }
+
+    // Лоадер
+    panel.innerHTML = '<div class="loading"><span class="spinner"></span>Считаем долги...</div>';
+    var calcPanel = document.getElementById('calc-debts-panel');
+    if (calcPanel) calcPanel.style.display = 'none';
+
     Promise.all([
         sbFetch('game_players?game_id=in.(' + selected.join(',') + ')&select=name,diff_rub'),
         getPayments()
@@ -194,12 +233,11 @@ function _doUpdateDebts() {
           .filter(function (t) {
               return !activePlayerFilter || t.from === activePlayerFilter || t.to === activePlayerFilter;
           });
-        if (!panel) {
-            panel = document.createElement('div');
-            panel.id = 'debts-panel';
-            panel.style.cssText = 'position:sticky;bottom:0;background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px 14px 0 0;padding:14px 16px;margin-top:12px;z-index:200;';
-            document.getElementById('history-content').appendChild(panel);
-        }
+
+        // скрываем кнопку "Посчитать", т.к. показываем результат
+        var calcPanel = document.getElementById('calc-debts-panel');
+        if (calcPanel) calcPanel.style.display = 'none';
+
         var titleLabel = activePlayerFilter
             ? 'Долги ' + escHtml(activePlayerFilter) + ' за ' + selected.length + ' игр:'
             : 'Итоговые долги за ' + selected.length + ' игр:';
@@ -234,7 +272,7 @@ function settleDebt(fromName, toName, amount) {
         }).then(function () {
             paymentsCache = null;
             if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-            updateSelectedDebts();
+            _doUpdateDebts();
         }).catch(function (e) { showAlert(e.message); });
     }
     if (tg && tg.showConfirm) { tg.showConfirm(confirmMsg, function (ok) { if (ok) doSettle(); }); }
@@ -255,4 +293,32 @@ function deleteGame(gameId) {
     }
     if (tg && tg.showConfirm) { tg.showConfirm('Удалить эту игру?', function (ok) { if (ok) executeDelete(); }); }
     else { if (confirm('Удалить эту игру?')) executeDelete(); }
+}
+
+function updateCalcBtnLabel() {
+    var btn = document.querySelector('#calc-debts-panel .btn');
+    if (!btn) return;
+    var count = document.querySelectorAll('.game-checkbox:checked').length;
+    btn.textContent = count > 0
+        ? '💰 Посчитать долги за выбранные игры (' + count + ')'
+        : '💰 Посчитать долги за выбранные игры';
+}
+
+function selectAllOpened() {
+    var anySelected = false;
+    document.querySelectorAll('.game-checkbox').forEach(function (cb) {
+        var gameId = cb.dataset.id;
+        var game = allGamesCache && allGamesCache.find(function (g) { return String(g.id) === String(gameId); });
+        if (game && !game.is_closed) {
+            cb.checked = true;
+            anySelected = true;
+        }
+    });
+    if (anySelected) {
+        var calcPanel = document.getElementById('calc-debts-panel');
+        if (calcPanel) calcPanel.style.display = '';
+        var debtsPanel = document.getElementById('debts-panel');
+        if (debtsPanel) debtsPanel.remove();
+        updateCalcBtnLabel();
+    }
 }
