@@ -1,1 +1,4 @@
-read me pls
+## TODO
+- [ ] fix transactions calculation
+- [ ] fix timer working
+- [x] refactor :))
