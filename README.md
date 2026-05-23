@@ -4,7 +4,7 @@
     - [x] add database retries
     - [x] add button "Посчитать долги за выбранные игры"
     - [x] add button "Выбрать все открытые игры"
-- [ ] Dockerize to make a dev env
+- [x] Dockerize to make a dev env
 - [ ] [Iteration II] Ensure correct transactions calculations and confirmation (Joja case)
     - [ ] anonymize original pgdump and reproduce
     - [ ] check if game gets closed when all the transactions completed
