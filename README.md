@@ -1,4 +1,5 @@
 ## TODO
+### Functional
 - [x] refactor :))
 - [x] [Iteration I] fix transactions calculation 
     - [x] add database retries
@@ -11,3 +12,6 @@
 - [ ] fix bug with incorrect game counter display on button when switching between tabs (and other cases?)
 - [ ] fix timer working while sleeping
 - [ ] fix winrate bug (Eugen case WL 6/6, WR 46%)
+
+### Infra
+- [ ] fix backups
