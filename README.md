@@ -10,3 +10,4 @@
     - [ ] check if game gets closed when all the transactions completed
 - [ ] fix bug with incorrect game counter display on button when switching between tabs (and other cases?)
 - [ ] fix timer working while sleeping
+- [ ] fix winrate bug (Eugen case WL 6/6, WR 46%)
