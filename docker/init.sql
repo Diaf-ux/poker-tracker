@@ -1,35 +1,36 @@
 CREATE ROLE web_anon NOLOGIN;
 
 CREATE TABLE IF NOT EXISTS games (
-    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    name TEXT NOT NULL,
-    datestr TEXT NOT NULL,
-    chipsperrub NUMERIC NOT NULL DEFAULT 0,
-    mode TEXT NOT NULL DEFAULT 'cash',
-    buyin NUMERIC NOT NULL DEFAULT 0,
-    isclosed BOOLEAN NOT NULL DEFAULT FALSE,
-    createdat TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name        TEXT NOT NULL,
+    date_str    TEXT NOT NULL,
+    chips_per_rub FLOAT8 NOT NULL DEFAULT 0,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    is_closed   BOOLEAN NOT NULL DEFAULT FALSE,
+    mode        TEXT NOT NULL DEFAULT 'cash',
+    buy_in      NUMERIC NOT NULL DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS gameplayers (
-    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    gameid BIGINT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    startchips NUMERIC NOT NULL DEFAULT 0,
-    finalchips NUMERIC NOT NULL DEFAULT 0,
-    diffrub NUMERIC NOT NULL DEFAULT 0
+CREATE TABLE IF NOT EXISTS game_players (
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    game_id     BIGINT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+    name        TEXT NOT NULL,
+    start_chips INTEGER NOT NULL DEFAULT 0,
+    final_chips INTEGER NOT NULL DEFAULT 0,
+    diff_rub    FLOAT8 NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS payments (
-    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    fromname TEXT NOT NULL,
-    toname TEXT NOT NULL,
-    amount NUMERIC NOT NULL,
-    gameids TEXT NOT NULL DEFAULT ''
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    from_name   TEXT NOT NULL,
+    to_name     TEXT NOT NULL,
+    amount      NUMERIC NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    game_ids    TEXT NOT NULL DEFAULT ''
 );
 
-CREATE INDEX IF NOT EXISTS idx_gameplayers_gameid ON gameplayers(gameid);
-CREATE INDEX IF NOT EXISTS idx_games_createdat ON games(createdat DESC);
+CREATE INDEX IF NOT EXISTS idx_game_players_game_id ON game_players(game_id);
+CREATE INDEX IF NOT EXISTS idx_games_created_at ON games(created_at DESC);
 
 GRANT USAGE ON SCHEMA public TO web_anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO web_anon;
