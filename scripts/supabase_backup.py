@@ -5,10 +5,46 @@ supabase_backup.py
 Full backup of a Supabase project via REST API only.
 No pg_dump, no direct DB connection -- only URL + service_role key.
 
-Produces a single SQL file containing:
-  1. CREATE TABLE (with column types, nullability, defaults)
-  2. ALTER TABLE  (primary keys, foreign keys, unique constraints)
-  3. INSERT INTO  (all row data, paginated)
+Requires the helper function installed once in Supabase Dashboard -> SQL Editor:
+
+  CREATE OR REPLACE FUNCTION public.supabase_backup_schema_info(target_tables text[] DEFAULT NULL)
+  RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+  DECLARE result jsonb;
+  BEGIN
+    SELECT jsonb_build_object(
+      'columns', (SELECT jsonb_agg(row_to_json(c)) FROM (
+        SELECT table_name, column_name, ordinal_position, column_default,
+               is_nullable, data_type, udt_name, character_maximum_length,
+               numeric_precision, numeric_scale
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND (target_tables IS NULL OR table_name = ANY(target_tables))
+        ORDER BY table_name, ordinal_position) c),
+      'constraints', (SELECT jsonb_agg(row_to_json(c)) FROM (
+        SELECT constraint_name, table_name, constraint_type
+        FROM information_schema.table_constraints
+        WHERE table_schema = 'public'
+          AND (target_tables IS NULL OR table_name = ANY(target_tables))) c),
+      'key_columns', (SELECT jsonb_agg(row_to_json(k)) FROM (
+        SELECT constraint_name, table_name, column_name, ordinal_position
+        FROM information_schema.key_column_usage
+        WHERE table_schema = 'public'
+          AND (target_tables IS NULL OR table_name = ANY(target_tables))
+        ORDER BY constraint_name, ordinal_position) k),
+      'referential', (SELECT jsonb_agg(row_to_json(r)) FROM (
+        SELECT constraint_name, unique_constraint_name, delete_rule, update_rule
+        FROM information_schema.referential_constraints
+        WHERE constraint_schema = 'public') r),
+      'indexes', (SELECT jsonb_agg(row_to_json(i)) FROM (
+        SELECT indexname, tablename, indexdef
+        FROM pg_indexes
+        WHERE schemaname = 'public'
+          AND (target_tables IS NULL OR tablename = ANY(target_tables))
+          AND indexname NOT LIKE '%_pkey'
+          AND indexname NOT LIKE '%_key') i)
+    ) INTO result;
+    RETURN result;
+  END; $$;
 
 Usage:
     python supabase_backup.py \
@@ -17,10 +53,10 @@ Usage:
         --out  backup.sql
 
 Optional:
-    --tables users,games,hands   comma-separated; empty = all public tables
-    --chunk  500                 rows per REST request (default 500)
-    --data-only                  skip schema, dump data only
-    --schema-only                skip data, dump schema only
+    --tables      users,games,hands   comma-separated; empty = all public tables
+    --chunk       500                 rows per REST request (default 500)
+    --data-only                       skip schema, dump data only
+    --schema-only                     skip data, dump schema only
 """
 
 import argparse
@@ -31,9 +67,13 @@ import urllib.parse
 from datetime import datetime, timezone
 from collections import defaultdict
 
+HELPER_FN = "supabase_backup_schema_info"
 
-def _get(url, headers):
-    req = urllib.request.Request(url, headers=headers)
+
+def _request(url, headers, data=None, method=None):
+    if data is not None:
+        data = json.dumps(data).encode()
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
             return resp.status, resp.read()
@@ -41,73 +81,43 @@ def _get(url, headers):
         return e.code, e.read()
 
 
-def http_get_json(url, headers):
-    status, body = _get(url, headers)
+def http_get(url, headers):
+    status, body = _request(url, headers)
     if status not in (200, 206):
         raise RuntimeError(f"HTTP {status} GET {url}: {body.decode()[:300]}")
     return json.loads(body)
 
 
-# ── Table discovery ────────────────────────────────────────────────────────
+def http_post(url, headers, payload):
+    h = {**headers, "Content-Type": "application/json"}
+    status, body = _request(url, h, data=payload, method="POST")
+    return status, body
 
-def discover_tables(base_url, headers):
-    spec = http_get_json(f"{base_url}/rest/v1/", headers)
+
+def fetch_schema_via_rpc(base, headers, tables):
+    url = f"{base}/rest/v1/rpc/{HELPER_FN}"
+    status, body = http_post(url, headers, {"target_tables": tables})
+    if status not in (200, 201):
+        raise RuntimeError(
+            f"RPC call to {HELPER_FN} failed (HTTP {status}): {body.decode()[:300]}\n"
+            f"Make sure you have created the helper function in Supabase SQL Editor."
+        )
+    result = json.loads(body)
+    if isinstance(result, str):
+        result = json.loads(result)
+    return result
+
+
+def discover_tables(base, headers):
+    spec   = http_get(f"{base}/rest/v1/", headers)
     tables = sorted(spec.get("definitions", {}).keys())
     if not tables:
         print("WARN: OpenAPI spec has no definitions. Check your service_role key.", file=sys.stderr)
     return spec, tables
 
-
-# ── Schema: information_schema approach ───────────────────────────────────
-
-def fetch_columns(base_url, headers, tables):
-    url = (
-        f"{base_url}/rest/v1/information_schema.columns"
-        f"?select=table_name,column_name,ordinal_position,column_default,"
-        f"is_nullable,data_type,udt_name,character_maximum_length,"
-        f"numeric_precision,numeric_scale"
-        f"&table_schema=eq.public"
-        f"&table_name=in.({urllib.parse.quote(','.join(tables))})"
-        f"&order=table_name,ordinal_position"
-    )
-    try:
-        return http_get_json(url, headers)
-    except Exception:
-        return []
-
-
-def fetch_constraints(base_url, headers, tables):
-    try:
-        tc = http_get_json(
-            f"{base_url}/rest/v1/information_schema.table_constraints"
-            f"?select=constraint_name,table_name,constraint_type"
-            f"&table_schema=eq.public"
-            f"&table_name=in.({urllib.parse.quote(','.join(tables))})",
-            headers
-        )
-        kcu = http_get_json(
-            f"{base_url}/rest/v1/information_schema.key_column_usage"
-            f"?select=constraint_name,table_name,column_name,ordinal_position"
-            f"&table_schema=eq.public"
-            f"&table_name=in.({urllib.parse.quote(','.join(tables))})"
-            f"&order=constraint_name,ordinal_position",
-            headers
-        )
-        ref = http_get_json(
-            f"{base_url}/rest/v1/information_schema.referential_constraints"
-            f"?select=constraint_name,unique_constraint_name,delete_rule,update_rule"
-            f"&constraint_schema=eq.public",
-            headers
-        )
-        return tc, kcu, ref
-    except Exception as e:
-        print(f"  WARN: Could not fetch constraints: {e}", file=sys.stderr)
-        return [], [], []
-
-
 def col_type_sql(row):
-    dt = row["data_type"]
-    udt = row["udt_name"]
+    dt  = row["data_type"]
+    udt = row.get("udt_name", "")
     if dt == "character varying":
         ml = row.get("character_maximum_length")
         return f"varchar({ml})" if ml else "text"
@@ -117,7 +127,7 @@ def col_type_sql(row):
     if dt == "numeric":
         p = row.get("numeric_precision")
         s = row.get("numeric_scale")
-        return f"numeric({p},{s})" if p and s else "numeric"
+        return f"numeric({p},{s})" if (p and s) else "numeric"
     if dt == "USER-DEFINED":
         return f'"{udt}"'
     if dt == "ARRAY":
@@ -125,14 +135,20 @@ def col_type_sql(row):
     return dt
 
 
-def build_schema_from_information_schema(columns, constraints, kcu, ref_constraints, tables):
-    lines = []
+def build_schema(schema_info, tables):
+    columns     = schema_info.get("columns")     or []
+    constraints = schema_info.get("constraints") or []
+    key_columns = schema_info.get("key_columns") or []
+    referential = schema_info.get("referential") or []
+    indexes     = schema_info.get("indexes")     or []
+    lines       = []
+
     table_cols = defaultdict(list)
     for row in columns:
         table_cols[row["table_name"]].append(row)
 
     kcu_map = defaultdict(list)
-    for row in kcu:
+    for row in key_columns:
         kcu_map[row["constraint_name"]].append(row["column_name"])
 
     ctype_map = {}
@@ -140,21 +156,22 @@ def build_schema_from_information_schema(columns, constraints, kcu, ref_constrai
         ctype_map[row["constraint_name"]] = (row["constraint_type"], row["table_name"])
 
     fk_ref_map = {}
-    for row in ref_constraints:
+    for row in referential:
         fk_ref_map[row["constraint_name"]] = row
 
     for table in tables:
-        cols = table_cols.get(table, [])
+        cols = sorted(table_cols.get(table, []), key=lambda r: r["ordinal_position"])
         if not cols:
+            lines.append(f'-- WARNING: no column info found for "{table}"')
             continue
-        lines.append(f'CREATE TABLE IF NOT EXISTS "{table}" (')
         col_lines = []
-        for col in sorted(cols, key=lambda r: r["ordinal_position"]):
-            cname = col["column_name"]
-            ctype = col_type_sql(col)
-            nullable = "" if col["is_nullable"] == "YES" else " NOT NULL"
+        for col in cols:
+            cname   = col["column_name"]
+            ctype   = col_type_sql(col)
+            notnull = " NOT NULL" if col["is_nullable"] == "NO" else ""
             default = f" DEFAULT {col['column_default']}" if col.get("column_default") else ""
-            col_lines.append(f'    "{cname}" {ctype}{nullable}{default}')
+            col_lines.append(f'    "{cname}" {ctype}{notnull}{default}')
+        lines.append(f'CREATE TABLE IF NOT EXISTS "{table}" (')
         lines.append(",\n".join(col_lines))
         lines.append(");")
         lines.append("")
@@ -171,11 +188,11 @@ def build_schema_from_information_schema(columns, constraints, kcu, ref_constrai
         elif ctype == "UNIQUE":
             lines.append(f'ALTER TABLE "{tname}" ADD CONSTRAINT "{cname}" UNIQUE ({col_list});')
         elif ctype == "FOREIGN KEY":
-            ref = fk_ref_map.get(cname, {})
+            ref       = fk_ref_map.get(cname, {})
             ref_cname = ref.get("unique_constraint_name", "")
-            del_rule = ref.get("delete_rule", "NO ACTION")
-            upd_rule = ref.get("update_rule", "NO ACTION")
-            ref_cols = kcu_map.get(ref_cname, [])
+            del_rule  = ref.get("delete_rule", "NO ACTION")
+            upd_rule  = ref.get("update_rule", "NO ACTION")
+            ref_cols  = kcu_map.get(ref_cname, [])
             ref_table = ctype_map.get(ref_cname, (None, None))[1]
             if ref_table and ref_cols:
                 ref_col_list = ", ".join(f'"{c}"' for c in ref_cols)
@@ -185,32 +202,27 @@ def build_schema_from_information_schema(columns, constraints, kcu, ref_constrai
                     f'ON DELETE {del_rule} ON UPDATE {upd_rule};'
                 )
     lines.append("")
+
+    for idx in indexes:
+        lines.append(f"{idx['indexdef']};")
+    if indexes:
+        lines.append("")
+
     return lines
 
 
 def build_schema_from_openapi(spec, tables):
-    """Fallback: reconstruct approximate CREATE TABLE from OpenAPI spec."""
-    lines = []
-    defs = spec.get("definitions", {})
-    pg_type_map = {
-        "integer": "integer", "number": "numeric",
-        "string": "text", "boolean": "boolean",
-        "object": "jsonb", "array": "jsonb",
-    }
-    fmt_map = {
-        "bigint": "bigint", "integer": "integer", "uuid": "uuid",
-        "timestamp with time zone": "timestamptz", "date": "date",
-        "json": "jsonb", "jsonb": "jsonb", "numeric": "numeric",
-    }
+    lines = ["-- NOTE: approximate types from OpenAPI spec.", "-- Install the helper function for exact types (see script docstring).", ""]
+    defs  = spec.get("definitions", {})
+    pg_type_map = {"integer": "integer", "number": "numeric", "string": "text", "boolean": "boolean", "object": "jsonb", "array": "jsonb"}
+    fmt_map     = {"bigint": "bigint", "integer": "integer", "uuid": "uuid", "timestamp with time zone": "timestamptz", "date": "date", "json": "jsonb", "jsonb": "jsonb", "numeric": "numeric"}
     for table in tables:
-        defn = defs.get(table, {})
-        props = defn.get("properties", {})
+        props = defs.get(table, {}).get("properties", {})
         if not props:
             continue
         col_defs = []
         for col, info in props.items():
-            pg_type = fmt_map.get(info.get("format", ""),
-                       pg_type_map.get(info.get("type", "string"), "text"))
+            pg_type = fmt_map.get(info.get("format", ""), pg_type_map.get(info.get("type", "string"), "text"))
             col_defs.append(f'    "{col}" {pg_type}')
         lines.append(f'CREATE TABLE IF NOT EXISTS "{table}" (')
         lines.append(",\n".join(col_defs))
@@ -219,16 +231,12 @@ def build_schema_from_openapi(spec, tables):
     return lines
 
 
-# ── Data ───────────────────────────────────────────────────────────────────
-
-def fetch_all_rows(base_url, table, headers, chunk):
-    rows = []
-    offset = 0
+def fetch_all_rows(base, table, headers, chunk):
+    rows, offset = [], 0
     while True:
-        url = (f"{base_url}/rest/v1/{urllib.parse.quote(table)}"
-               f"?select=*&limit={chunk}&offset={offset}")
+        url = f"{base}/rest/v1/{urllib.parse.quote(table)}?select=*&limit={chunk}&offset={offset}"
         h = {**headers, "Prefer": "count=exact"}
-        status, body = _get(url, h)
+        status, body = _request(url, h)
         if status not in (200, 206):
             print(f"  WARN: HTTP {status} on {table} at offset {offset}", file=sys.stderr)
             break
@@ -243,14 +251,10 @@ def fetch_all_rows(base_url, table, headers, chunk):
 
 
 def sql_literal(v):
-    if v is None:
-        return "NULL"
-    if isinstance(v, bool):
-        return "TRUE" if v else "FALSE"
-    if isinstance(v, (int, float)):
-        return str(v)
-    if isinstance(v, (dict, list)):
-        return "'" + json.dumps(v).replace("'", "''") + "'"
+    if v is None:             return "NULL"
+    if isinstance(v, bool):   return "TRUE" if v else "FALSE"
+    if isinstance(v, (int, float)): return str(v)
+    if isinstance(v, (dict, list)): return "'" + json.dumps(v).replace("'", "''") + "'"
     return "'" + str(v).replace("'", "''") + "'"
 
 
@@ -258,40 +262,29 @@ def rows_to_sql(table, rows):
     if not rows:
         return [f"-- (no rows in {table})"]
     cols = ", ".join(f'"{c}"' for c in rows[0])
-    out = []
-    for row in rows:
-        vals = ", ".join(sql_literal(v) for v in row.values())
-        out.append(f'INSERT INTO "{table}" ({cols}) VALUES ({vals}) ON CONFLICT DO NOTHING;')
-    return out
+    return [f'INSERT INTO "{table}" ({cols}) VALUES ({", ".join(sql_literal(v) for v in row.values())}) ON CONFLICT DO NOTHING;' for row in rows]
 
-
-# ── Main ───────────────────────────────────────────────────────────────────
 
 def main():
     p = argparse.ArgumentParser(description="Full Supabase backup via REST API (no pg_dump)")
-    p.add_argument("--url",         required=True, help="https://xxxx.supabase.co")
-    p.add_argument("--key",         required=True, help="service_role key")
+    p.add_argument("--url",         required=True)
+    p.add_argument("--key",         required=True)
     p.add_argument("--out",         default="backup.sql")
-    p.add_argument("--tables",      default="", help="comma-separated; empty = all")
+    p.add_argument("--tables",      default="")
     p.add_argument("--chunk",       type=int, default=500)
     p.add_argument("--data-only",   action="store_true")
     p.add_argument("--schema-only", action="store_true")
     args = p.parse_args()
 
-    base = args.url.rstrip("/")
-    headers = {
-        "apikey":        args.key,
-        "Authorization": f"Bearer {args.key}",
-        "Content-Type":  "application/json",
-    }
+    base    = args.url.rstrip("/")
+    headers = {"apikey": args.key, "Authorization": f"Bearer {args.key}", "Content-Type": "application/json"}
 
     print("Fetching OpenAPI spec...")
     spec, all_tables = discover_tables(base, headers)
     tables = [t.strip() for t in args.tables.split(",") if t.strip()] if args.tables else all_tables
 
     if not tables:
-        print("No tables found. Check your service_role key.", file=sys.stderr)
-        sys.exit(1)
+        print("No tables found.", file=sys.stderr); sys.exit(1)
 
     print(f"Tables ({len(tables)}): {tables}")
 
@@ -303,26 +296,26 @@ def main():
         f"-- Tables  : {', '.join(tables)}",
         '-- Restore : psql "$DATABASE_URL" -f backup.sql',
         "--         or paste into Supabase Dashboard -> SQL Editor",
-        "-- ============================================================",
-        "",
+        "-- ============================================================", "",
     ]
 
     if not args.data_only:
-        print("\nFetching schema...")
-        columns = fetch_columns(base, headers, tables)
-        if columns:
-            print(f"  {len(columns)} columns via information_schema.")
-            tc, kcu, ref = fetch_constraints(base, headers, tables)
-            schema_lines = build_schema_from_information_schema(columns, tc, kcu, ref, tables)
-            lines += ["-- SCHEMA (from information_schema)", ""]
-        else:
-            print("  information_schema not exposed. Falling back to OpenAPI spec (approximate types).")
-            schema_lines = build_schema_from_openapi(spec, tables)
-            lines += ["-- SCHEMA (from OpenAPI spec -- review types before restoring)", ""]
-        lines += schema_lines
+        print("\nFetching schema via RPC helper...")
+        try:
+            schema_info = fetch_schema_via_rpc(base, headers, tables)
+            col_count   = len(schema_info.get("columns") or [])
+            idx_count   = len(schema_info.get("indexes") or [])
+            print(f"  Exact schema: {col_count} columns, {idx_count} indexes.")
+            lines += ["-- SCHEMA (exact, from information_schema + pg_catalog)", ""]
+            lines += build_schema(schema_info, tables)
+        except RuntimeError as e:
+            print(f"  WARN: {e}", file=sys.stderr)
+            print("  Falling back to OpenAPI-derived schema (approximate).", file=sys.stderr)
+            lines += ["-- SCHEMA (approximate, from OpenAPI spec)", ""]
+            lines += build_schema_from_openapi(spec, tables)
 
     if not args.schema_only:
-        lines += ["-- DATA", "", "BEGIN;", ""]
+        lines += ["-- ============================================================", "-- DATA", "-- ============================================================", "", "BEGIN;", ""]
         total = 0
         for table in tables:
             print(f"  -> {table} ...", end=" ", flush=True)
