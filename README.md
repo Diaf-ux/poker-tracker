@@ -8,7 +8,7 @@
 - [x] Dockerize to make a dev env
 - [ ] [Iteration II] Ensure correct transactions calculations and confirmation (Joja case)
     - [ ] anonymize original pgdump and reproduce
-        - [ ] find a way do make a dump
+        - [x] find a way do make a dump
         - [ ] anonymize
         - [ ] integrate with dev
     - [ ] check if game gets closed when all the transactions completed
