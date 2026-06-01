@@ -65,7 +65,7 @@ import sys
 import urllib.request
 import urllib.parse
 from datetime import datetime, timezone
-from collections import defaultdict
+from collections import defaultdict, deque
 
 HELPER_FN = "supabase_backup_schema_info"
 
@@ -135,30 +135,92 @@ def col_type_sql(row):
     return dt
 
 
+def topological_sort(tables, fk_edges):
+    """
+    Return tables ordered so that referenced (parent) tables come before
+    referencing (child) tables. Uses Kahn's algorithm.
+    Falls back to the original order if a cycle is detected.
+
+    fk_edges: list of (child_table, parent_table) pairs.
+    """
+    table_set  = set(tables)
+    dependents = defaultdict(set)   # parent -> set of children
+    dep_count  = {t: 0 for t in tables}
+
+    for child, parent in fk_edges:
+        if child in table_set and parent in table_set and child != parent:
+            if child not in dependents[parent]:
+                dependents[parent].add(child)
+                dep_count[child] += 1
+
+    queue  = deque(sorted(t for t in tables if dep_count[t] == 0))
+    result = []
+    while queue:
+        t = queue.popleft()
+        result.append(t)
+        for child in sorted(dependents[t]):
+            dep_count[child] -= 1
+            if dep_count[child] == 0:
+                queue.append(child)
+
+    if len(result) != len(tables):
+        print("WARN: Circular FK dependencies detected; using original table order.", file=sys.stderr)
+        return list(tables)
+    return result
+
+
+def _build_ctype_and_kcu(constraints, key_columns):
+    """
+    Returns:
+      ctype_map:  constraint_name -> (constraint_type, table_name)   (deduplicated)
+      kcu_map:    constraint_name -> ordered list of column names
+    """
+    kcu_map = defaultdict(list)
+    for row in sorted(key_columns, key=lambda r: r["ordinal_position"]):
+        kcu_map[row["constraint_name"]].append(row["column_name"])
+
+    ctype_map = {}
+    for row in constraints:
+        cname = row["constraint_name"]
+        if cname not in ctype_map:
+            ctype_map[cname] = (row["constraint_type"], row["table_name"])
+
+    return ctype_map, kcu_map
+
+
 def build_schema(schema_info, tables):
+    """
+    Emit SQL in restore-safe order:
+      1. CREATE TABLE  (columns only, no inline constraints)
+      2. PRIMARY KEY + UNIQUE  ALTER TABLE statements
+      3. FOREIGN KEY           ALTER TABLE statements
+      4. CREATE INDEX          statements
+
+    Every constraint name is tracked so it is emitted exactly once,
+    preventing the "multiple primary keys" / duplicate FK errors.
+    """
     columns     = schema_info.get("columns")     or []
     constraints = schema_info.get("constraints") or []
     key_columns = schema_info.get("key_columns") or []
     referential = schema_info.get("referential") or []
     indexes     = schema_info.get("indexes")     or []
-    lines       = []
 
     table_cols = defaultdict(list)
     for row in columns:
         table_cols[row["table_name"]].append(row)
 
-    kcu_map = defaultdict(list)
-    for row in key_columns:
-        kcu_map[row["constraint_name"]].append(row["column_name"])
-
-    ctype_map = {}
-    for row in constraints:
-        ctype_map[row["constraint_name"]] = (row["constraint_type"], row["table_name"])
+    ctype_map, kcu_map = _build_ctype_and_kcu(constraints, key_columns)
 
     fk_ref_map = {}
     for row in referential:
         fk_ref_map[row["constraint_name"]] = row
 
+    lines = []
+    emitted_constraints = set()
+
+    # ------------------------------------------------------------------ #
+    # 1. CREATE TABLE (columns only – no inline PRIMARY KEY / UNIQUE)
+    # ------------------------------------------------------------------ #
     for table in tables:
         cols = sorted(table_cols.get(table, []), key=lambda r: r["ordinal_position"])
         if not cols:
@@ -176,35 +238,66 @@ def build_schema(schema_info, tables):
         lines.append(");")
         lines.append("")
 
+    # ------------------------------------------------------------------ #
+    # 2. PRIMARY KEY and UNIQUE constraints
+    # ------------------------------------------------------------------ #
     for cname, (ctype, tname) in ctype_map.items():
         if tname not in tables:
+            continue
+        if cname in emitted_constraints:
             continue
         cols_involved = kcu_map.get(cname, [])
         if not cols_involved:
             continue
         col_list = ", ".join(f'"{c}"' for c in cols_involved)
         if ctype == "PRIMARY KEY":
-            lines.append(f'ALTER TABLE "{tname}" ADD CONSTRAINT "{cname}" PRIMARY KEY ({col_list});')
+            lines.append(
+                f'ALTER TABLE "{tname}" ADD CONSTRAINT "{cname}" PRIMARY KEY ({col_list});')
+            emitted_constraints.add(cname)
         elif ctype == "UNIQUE":
-            lines.append(f'ALTER TABLE "{tname}" ADD CONSTRAINT "{cname}" UNIQUE ({col_list});')
-        elif ctype == "FOREIGN KEY":
-            ref       = fk_ref_map.get(cname, {})
-            ref_cname = ref.get("unique_constraint_name", "")
-            del_rule  = ref.get("delete_rule", "NO ACTION")
-            upd_rule  = ref.get("update_rule", "NO ACTION")
-            ref_cols  = kcu_map.get(ref_cname, [])
-            ref_table = ctype_map.get(ref_cname, (None, None))[1]
-            if ref_table and ref_cols:
-                ref_col_list = ", ".join(f'"{c}"' for c in ref_cols)
-                lines.append(
-                    f'ALTER TABLE "{tname}" ADD CONSTRAINT "{cname}" '
-                    f'FOREIGN KEY ({col_list}) REFERENCES "{ref_table}" ({ref_col_list}) '
-                    f'ON DELETE {del_rule} ON UPDATE {upd_rule};'
-                )
+            lines.append(
+                f'ALTER TABLE "{tname}" ADD CONSTRAINT "{cname}" UNIQUE ({col_list});')
+            emitted_constraints.add(cname)
+
     lines.append("")
 
+    # ------------------------------------------------------------------ #
+    # 3. FOREIGN KEY constraints  (after all PKs / UNIQUEs are in place)
+    # ------------------------------------------------------------------ #
+    for cname, (ctype, tname) in ctype_map.items():
+        if tname not in tables:
+            continue
+        if cname in emitted_constraints:
+            continue
+        if ctype != "FOREIGN KEY":
+            continue
+        cols_involved = kcu_map.get(cname, [])
+        if not cols_involved:
+            continue
+        col_list  = ", ".join(f'"{c}"' for c in cols_involved)
+        ref       = fk_ref_map.get(cname, {})
+        ref_cname = ref.get("unique_constraint_name", "")
+        del_rule  = ref.get("delete_rule", "NO ACTION")
+        upd_rule  = ref.get("update_rule", "NO ACTION")
+        ref_cols  = kcu_map.get(ref_cname, [])
+        ref_table = ctype_map.get(ref_cname, (None, None))[1]
+        if ref_table and ref_cols:
+            ref_col_list = ", ".join(f'"{c}"' for c in ref_cols)
+            lines.append(
+                f'ALTER TABLE "{tname}" ADD CONSTRAINT "{cname}" '
+                f'FOREIGN KEY ({col_list}) REFERENCES "{ref_table}" ({ref_col_list}) '
+                f'ON DELETE {del_rule} ON UPDATE {upd_rule};')
+            emitted_constraints.add(cname)
+
+    # ------------------------------------------------------------------ #
+    # 4. Indexes
+    # ------------------------------------------------------------------ #
+    seen_indexes = set()
     for idx in indexes:
-        lines.append(f"{idx['indexdef']};")
+        key = idx["indexname"]
+        if key not in seen_indexes:
+            lines.append(f"{idx['indexdef']};")
+            seen_indexes.add(key)
     if indexes:
         lines.append("")
 
@@ -212,17 +305,24 @@ def build_schema(schema_info, tables):
 
 
 def build_schema_from_openapi(spec, tables):
-    lines = ["-- NOTE: approximate types from OpenAPI spec.", "-- Install the helper function for exact types (see script docstring).", ""]
-    defs  = spec.get("definitions", {})
-    pg_type_map = {"integer": "integer", "number": "numeric", "string": "text", "boolean": "boolean", "object": "jsonb", "array": "jsonb"}
-    fmt_map     = {"bigint": "bigint", "integer": "integer", "uuid": "uuid", "timestamp with time zone": "timestamptz", "date": "date", "json": "jsonb", "jsonb": "jsonb", "numeric": "numeric"}
+    lines = [
+        "-- NOTE: approximate types from OpenAPI spec.",
+        "-- Install the helper function for exact types (see script docstring).", ""
+    ]
+    defs        = spec.get("definitions", {})
+    pg_type_map = {"integer": "integer", "number": "numeric", "string": "text",
+                   "boolean": "boolean", "object": "jsonb", "array": "jsonb"}
+    fmt_map     = {"bigint": "bigint", "integer": "integer", "uuid": "uuid",
+                   "timestamp with time zone": "timestamptz", "date": "date",
+                   "json": "jsonb", "jsonb": "jsonb", "numeric": "numeric"}
     for table in tables:
         props = defs.get(table, {}).get("properties", {})
         if not props:
             continue
         col_defs = []
         for col, info in props.items():
-            pg_type = fmt_map.get(info.get("format", ""), pg_type_map.get(info.get("type", "string"), "text"))
+            pg_type = fmt_map.get(info.get("format", ""),
+                                  pg_type_map.get(info.get("type", "string"), "text"))
             col_defs.append(f'    "{col}" {pg_type}')
         lines.append(f'CREATE TABLE IF NOT EXISTS "{table}" (')
         lines.append(",\n".join(col_defs))
@@ -234,7 +334,8 @@ def build_schema_from_openapi(spec, tables):
 def fetch_all_rows(base, table, headers, chunk):
     rows, offset = [], 0
     while True:
-        url = f"{base}/rest/v1/{urllib.parse.quote(table)}?select=*&limit={chunk}&offset={offset}"
+        url = (f"{base}/rest/v1/{urllib.parse.quote(table)}"
+               f"?select=*&limit={chunk}&offset={offset}")
         h = {**headers, "Prefer": "count=exact"}
         status, body = _request(url, h)
         if status not in (200, 206):
@@ -251,10 +352,14 @@ def fetch_all_rows(base, table, headers, chunk):
 
 
 def sql_literal(v):
-    if v is None:             return "NULL"
-    if isinstance(v, bool):   return "TRUE" if v else "FALSE"
-    if isinstance(v, (int, float)): return str(v)
-    if isinstance(v, (dict, list)): return "'" + json.dumps(v).replace("'", "''") + "'"
+    if v is None:
+        return "NULL"
+    if isinstance(v, bool):
+        return "TRUE" if v else "FALSE"
+    if isinstance(v, (int, float)):
+        return str(v)
+    if isinstance(v, (dict, list)):
+        return "'" + json.dumps(v).replace("'", "''") + "'"
     return "'" + str(v).replace("'", "''") + "'"
 
 
@@ -262,11 +367,16 @@ def rows_to_sql(table, rows):
     if not rows:
         return [f"-- (no rows in {table})"]
     cols = ", ".join(f'"{c}"' for c in rows[0])
-    return [f'INSERT INTO "{table}" ({cols}) VALUES ({", ".join(sql_literal(v) for v in row.values())}) ON CONFLICT DO NOTHING;' for row in rows]
+    return [
+        f'INSERT INTO "{table}" ({cols}) VALUES '
+        f'({", ".join(sql_literal(v) for v in row.values())}) ON CONFLICT DO NOTHING;'
+        for row in rows
+    ]
 
 
 def main():
-    p = argparse.ArgumentParser(description="Full Supabase backup via REST API (no pg_dump)")
+    p = argparse.ArgumentParser(
+        description="Full Supabase backup via REST API (no pg_dump)")
     p.add_argument("--url",         required=True)
     p.add_argument("--key",         required=True)
     p.add_argument("--out",         default="backup.sql")
@@ -277,16 +387,54 @@ def main():
     args = p.parse_args()
 
     base    = args.url.rstrip("/")
-    headers = {"apikey": args.key, "Authorization": f"Bearer {args.key}", "Content-Type": "application/json"}
+    headers = {
+        "apikey":        args.key,
+        "Authorization": f"Bearer {args.key}",
+        "Content-Type":  "application/json",
+    }
 
     print("Fetching OpenAPI spec...")
     spec, all_tables = discover_tables(base, headers)
-    tables = [t.strip() for t in args.tables.split(",") if t.strip()] if args.tables else all_tables
+    tables = ([t.strip() for t in args.tables.split(",") if t.strip()]
+              if args.tables else all_tables)
 
     if not tables:
-        print("No tables found.", file=sys.stderr); sys.exit(1)
+        print("No tables found.", file=sys.stderr)
+        sys.exit(1)
 
-    print(f"Tables ({len(tables)}): {tables}")
+    # ------------------------------------------------------------------ #
+    # Fetch schema early so we can topologically sort tables by FK deps.
+    # Parent tables must be created and populated before child tables.
+    # ------------------------------------------------------------------ #
+    schema_info = None
+    print("\nFetching schema via RPC helper...")
+    try:
+        schema_info = fetch_schema_via_rpc(base, headers, tables)
+        col_count   = len(schema_info.get("columns") or [])
+        idx_count   = len(schema_info.get("indexes") or [])
+        print(f"  Exact schema: {col_count} columns, {idx_count} indexes.")
+    except RuntimeError as e:
+        print(f"  WARN: {e}", file=sys.stderr)
+        print("  Falling back to OpenAPI-derived schema (approximate).", file=sys.stderr)
+
+    # Build FK edges for topological sort
+    fk_edges = []
+    if schema_info:
+        referential = schema_info.get("referential") or []
+        constraints = schema_info.get("constraints") or []
+        key_columns = schema_info.get("key_columns") or []
+        ctype_map, _ = _build_ctype_and_kcu(constraints, key_columns)
+        fk_ref_map   = {r["constraint_name"]: r for r in referential}
+        for cname, (ctype, tname) in ctype_map.items():
+            if ctype == "FOREIGN KEY":
+                ref       = fk_ref_map.get(cname, {})
+                ref_cname = ref.get("unique_constraint_name", "")
+                parent    = ctype_map.get(ref_cname, (None, None))[1]
+                if tname and parent:
+                    fk_edges.append((tname, parent))
+
+    tables = topological_sort(tables, fk_edges)
+    print(f"Tables ({len(tables)}, topological order): {tables}")
 
     lines = [
         "-- ============================================================",
@@ -300,22 +448,21 @@ def main():
     ]
 
     if not args.data_only:
-        print("\nFetching schema via RPC helper...")
-        try:
-            schema_info = fetch_schema_via_rpc(base, headers, tables)
-            col_count   = len(schema_info.get("columns") or [])
-            idx_count   = len(schema_info.get("indexes") or [])
-            print(f"  Exact schema: {col_count} columns, {idx_count} indexes.")
-            lines += ["-- SCHEMA (exact, from information_schema + pg_catalog)", ""]
+        lines += ["-- SCHEMA", ""]
+        if schema_info:
+            lines += ["-- (exact, from information_schema + pg_catalog)", ""]
             lines += build_schema(schema_info, tables)
-        except RuntimeError as e:
-            print(f"  WARN: {e}", file=sys.stderr)
-            print("  Falling back to OpenAPI-derived schema (approximate).", file=sys.stderr)
-            lines += ["-- SCHEMA (approximate, from OpenAPI spec)", ""]
+        else:
+            lines += ["-- (approximate, from OpenAPI spec)", ""]
             lines += build_schema_from_openapi(spec, tables)
 
     if not args.schema_only:
-        lines += ["-- ============================================================", "-- DATA", "-- ============================================================", "", "BEGIN;", ""]
+        lines += [
+            "-- ============================================================",
+            "-- DATA",
+            "-- ============================================================", "",
+            "BEGIN;", "",
+        ]
         total = 0
         for table in tables:
             print(f"  -> {table} ...", end=" ", flush=True)

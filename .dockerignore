@@ -1,3 +1,5 @@
 README.md
 repomix*
 Dockerfile
+.env*
+Justfile

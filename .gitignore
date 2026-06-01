@@ -1,3 +1,4 @@
 repomix*
 .repomix*
 backup
+.env

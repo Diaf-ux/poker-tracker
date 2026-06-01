@@ -9,8 +9,9 @@
 - [ ] [Iteration II] Ensure correct transactions calculations and confirmation (Joja case)
     - [ ] anonymize original pgdump and reproduce
         - [x] find a way do make a dump
-        - [ ] anonymize
-        - [ ] integrate with dev
+        - [x] anonymize
+        - [x] integrate with dev
+        - [ ] reproduce
     - [ ] check if game gets closed when all the transactions completed
 - [ ] fix bug with incorrect game counter display on button when switching between tabs (and other cases?)
 - [ ] fix timer working while sleeping
