@@ -12,7 +12,8 @@
         - [x] find a way do make a dump
         - [x] anonymize
         - [x] integrate with dev
-        - [ ] reproduce
+        - [ ] understand incorrect behaviour nature and reproduce
+        - [ ] fix
     - [ ] check if game gets closed when all the transactions completed
 - [ ] fix bug with incorrect game counter display on button when switching between tabs (and other cases?)
 - [ ] fix timer working while sleeping
@@ -20,3 +21,4 @@
 
 ### Infra
 - [ ] fix backups
+- [ ] test restoration after data corruption

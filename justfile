@@ -27,8 +27,11 @@ down:
 down-flush:
     docker compose down --volumes
 
-# Rebuilds the app
-rebuild-app:
+# Flushes the data and restarts app
+up-restart: down-flush up
+
+# Rebuilds the app without removing the data
+up-reload:
     docker compose down app
     docker compose up --build -d
 
