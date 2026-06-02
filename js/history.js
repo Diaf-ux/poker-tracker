@@ -327,6 +327,7 @@ function selectAllOpened() {
         var debtsPanel = document.getElementById('debts-panel');
         if (debtsPanel) debtsPanel.remove();
         updateCalcBtnLabel();
+        updateSelectOpenedWrap();
     }
 }
 

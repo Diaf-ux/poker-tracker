@@ -15,10 +15,16 @@
         - [ ] understand incorrect behaviour nature and reproduce
         - [ ] fix
     - [ ] check if game gets closed when all the transactions completed
-- [ ] fix bug with incorrect game counter display on button when switching between tabs (and other cases?)
 - [ ] fix timer working while sleeping
 - [ ] fix winrate bug (Eugen case WL 6/6, WR 46%)
+- [ ] EPIC: fix UI state bugs
+    - [ ] fix bug with incorrect game counter display on button when switching between tabs
+    - [ ] select/deselect button wrong behaviour when clicking other buttons
+    - [ ] other cases...
 
 ### Infra
 - [ ] fix backups
 - [ ] test restoration after data corruption
+- [ ] Docs update hook
+- [ ] version automation
+    - [ ] index.html update hook
