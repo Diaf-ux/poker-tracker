@@ -89,10 +89,16 @@ function renderHistoryCards(games) {
         }).join('') + '</div>';
 
         var hasOpen = (allGamesCache || []).some(function (g) { return !g.is_closed; });
+        var anyChecked = document.querySelectorAll('.game-checkbox:checked').length > 0;
         var selectOpenedBtn = hasOpen
             ? '<div id="select-opened-wrap" style="margin-bottom:10px;">' +
-            '<button class="btn btn-blue btn-full btn-sm" onclick="selectAllOpened()">' +
-            '☑️ Выбрать все открытые игры</button></div>'
+            (anyChecked
+                ? '<div style="display:flex;gap:8px;">' +
+                '<button class="btn btn-blue btn-sm" style="flex:1" onclick="selectAllOpened()">☑️ Выбрать все открытые игры</button>' +
+                '<button class="btn btn-deselect btn-sm" style="flex:1" onclick="deselectAll()">✕ Отменить выбор</button>' +
+                '</div>'
+                : '<button class="btn btn-blue btn-full btn-sm" onclick="selectAllOpened()">☑️ Выбрать все открытые игры</button>'
+            ) + '</div>'
             : '';
 
     if (!filtered.length) {
@@ -152,6 +158,7 @@ function renderHistoryCards(games) {
                 if (debtsPanel) debtsPanel.remove(); // сбрасываем старые долги при смене выбора
             }
             updateCalcBtnLabel();
+            updateSelectOpenedWrap();
         });
     });
 }
@@ -320,5 +327,35 @@ function selectAllOpened() {
         var debtsPanel = document.getElementById('debts-panel');
         if (debtsPanel) debtsPanel.remove();
         updateCalcBtnLabel();
+    }
+}
+
+function deselectAll() {
+    document.querySelectorAll('.game-checkbox').forEach(function (cb) {
+        cb.checked = false;
+    });
+    var calcPanel = document.getElementById('calc-debts-panel');
+    if (calcPanel) calcPanel.style.display = 'none';
+    var debtsPanel = document.getElementById('debts-panel');
+    if (debtsPanel) debtsPanel.remove();
+    updateCalcBtnLabel();
+    if (allGamesCache) renderHistoryCards(allGamesCache);
+}
+
+function updateSelectOpenedWrap() {
+    var wrap = document.getElementById('select-opened-wrap');
+    if (!wrap) return;
+    var hasOpen = (allGamesCache || []).some(function (g) { return !g.is_closed; });
+    if (!hasOpen) return;
+    var anyChecked = document.querySelectorAll('.game-checkbox:checked').length > 0;
+    if (anyChecked) {
+        wrap.innerHTML =
+            '<div style="display:flex;gap:8px;">' +
+            '<button class="btn btn-blue btn-sm" style="flex:1" onclick="selectAllOpened()">☑️ Выбрать все открытые игры</button>' +
+            '<button class="btn btn-deselect btn-sm" style="flex:1" onclick="deselectAll()">✕ Отменить выбор</button>' +
+            '</div>';
+    } else {
+        wrap.innerHTML =
+            '<button class="btn btn-blue btn-full btn-sm" onclick="selectAllOpened()">☑️ Выбрать все открытые игры</button>';
     }
 }

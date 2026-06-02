@@ -97,7 +97,7 @@ input:focus {
     margin-bottom: 12px;
 }
 
-.row > div {
+.row>div {
     flex: 1;
 }
 
@@ -123,10 +123,30 @@ input:focus {
     filter: brightness(0.9);
 }
 
-.btn-gold  { background: var(--gold);         color: #1a1a00; }
-.btn-green { background: var(--green-light);   color: white; }
-.btn-red   { background: var(--red);           color: white; }
-.btn-blue  { background: var(--blue);          color: white; }
+.btn-gold {
+    background: var(--gold);
+    color: #1a1a00;
+}
+
+.btn-green {
+    background: var(--green-light);
+    color: white;
+}
+
+.btn-red {
+    background: var(--red);
+    color: white;
+}
+
+.btn-blue {
+    background: var(--blue);
+    color: white;
+}
+
+.btn-deselect {
+    background: var(--red);
+    color: white;
+}
 
 .btn-sm {
     padding: 9px 13px;
@@ -134,7 +154,9 @@ input:focus {
     min-height: 38px;
 }
 
-.btn-full { width: 100%; }
+.btn-full {
+    width: 100%;
+}
 
 .btn-group {
     display: flex;
@@ -240,8 +262,13 @@ input:focus {
 
 /* ── Pages ── */
 
-.page { display: none; }
-.page.active { display: block; }
+.page {
+    display: none;
+}
+
+.page.active {
+    display: block;
+}
 
 #page-auth.active {
     display: flex;
@@ -327,7 +354,9 @@ input:focus {
     align-items: center;
 }
 
-.player-actions input { flex: 1; }
+.player-actions input {
+    flex: 1;
+}
 
 .history-log {
     max-height: 90px;
@@ -364,15 +393,29 @@ input:focus {
     border-bottom: 1px solid var(--card-border);
 }
 
-.result-table tr:last-child td { border: none; }
+.result-table tr:last-child td {
+    border: none;
+}
 
-.pos  { color: #60e080; font-weight: 700; }
-.neg  { color: var(--red); font-weight: 700; }
-.zero { color: var(--text-muted); }
+.pos {
+    color: #60e080;
+    font-weight: 700;
+}
+
+.neg {
+    color: var(--red);
+    font-weight: 700;
+}
+
+.zero {
+    color: var(--text-muted);
+}
 
 /* ── Transactions ── */
 
-.transactions { list-style: none; }
+.transactions {
+    list-style: none;
+}
 
 .transactions li {
     background: #0f2d1a;
@@ -387,7 +430,9 @@ input:focus {
     flex-wrap: wrap;
 }
 
-.transactions li .arrow { color: var(--gold); }
+.transactions li .arrow {
+    color: var(--gold);
+}
 
 .transactions li .amount {
     margin-left: auto;
@@ -432,11 +477,21 @@ input:focus {
     border-bottom: 1px solid var(--card-border);
 }
 
-.leader-table tr:last-child td { border: none; }
+.leader-table tr:last-child td {
+    border: none;
+}
 
-.rank-1 td:first-child { color: #ffd700; }
-.rank-2 td:first-child { color: #c0c0c0; }
-.rank-3 td:first-child { color: #cd7f32; }
+.rank-1 td:first-child {
+    color: #ffd700;
+}
+
+.rank-2 td:first-child {
+    color: #c0c0c0;
+}
+
+.rank-3 td:first-child {
+    color: #cd7f32;
+}
 
 /* ── Stats grid ── */
 
@@ -512,7 +567,9 @@ input:focus {
     border-bottom: 1px solid #1a3a28;
 }
 
-.history-mini-table tr:last-child td { border: none; }
+.history-mini-table tr:last-child td {
+    border: none;
+}
 
 .delete-game-btn {
     background: none;
@@ -536,7 +593,9 @@ input:focus {
     scrollbar-width: none;
 }
 
-.filter-pills::-webkit-scrollbar { display: none; }
+.filter-pills::-webkit-scrollbar {
+    display: none;
+}
 
 .filter-pill {
     flex-shrink: 0;
@@ -622,7 +681,9 @@ input:focus {
     color: var(--text);
 }
 
-.final-row input { flex: 1; }
+.final-row input {
+    flex: 1;
+}
 
 .total-info {
     text-align: center;
@@ -663,8 +724,13 @@ input:focus {
     margin: 4px 0;
 }
 
-.blind-countdown.warn   { color: #f0a040; }
-.blind-countdown.danger { color: var(--red); }
+.blind-countdown.warn {
+    color: #f0a040;
+}
+
+.blind-countdown.danger {
+    color: var(--red);
+}
 
 .blind-progress-bar {
     height: 6px;
@@ -681,8 +747,13 @@ input:focus {
     transition: width 0.9s linear;
 }
 
-.blind-progress-fill.warn   { background: #f0a040; }
-.blind-progress-fill.danger { background: var(--red); }
+.blind-progress-fill.warn {
+    background: #f0a040;
+}
+
+.blind-progress-fill.danger {
+    background: var(--red);
+}
 
 .blind-controls {
     display: flex;
@@ -765,12 +836,12 @@ input:focus {
     transition: 0.2s;
 }
 
-.toggle-switch input:checked + .toggle-slider {
+.toggle-switch input:checked+.toggle-slider {
     background: var(--green-dark);
     border-color: var(--green-light);
 }
 
-.toggle-switch input:checked + .toggle-slider:before {
+.toggle-switch input:checked+.toggle-slider:before {
     transform: translateX(20px);
     background: var(--green-light);
 }
@@ -854,8 +925,12 @@ input:focus {
     vertical-align: middle;
 }
 
-.tg-bottom-spacer { height: 80px; }
+.tg-bottom-spacer {
+    height: 80px;
+}
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }

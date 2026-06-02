@@ -27,6 +27,11 @@ down:
 down-flush:
     docker compose down --volumes
 
+# Rebuilds the app
+rebuild-app:
+    docker compose down app
+    docker compose up --build -d
+
 [doc("""
 WSL-compatible way to run repomix and copy tp clipboard
 """)]
