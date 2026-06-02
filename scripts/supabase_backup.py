@@ -9,42 +9,71 @@ Requires the helper function installed once in Supabase Dashboard -> SQL Editor:
 
   CREATE OR REPLACE FUNCTION public.supabase_backup_schema_info(target_tables text[] DEFAULT NULL)
   RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-  DECLARE result jsonb;
-  BEGIN
+    DECLARE
+    result jsonb;
+    BEGIN
     SELECT jsonb_build_object(
-      'columns', (SELECT jsonb_agg(row_to_json(c)) FROM (
-        SELECT table_name, column_name, ordinal_position, column_default,
-               is_nullable, data_type, udt_name, character_maximum_length,
-               numeric_precision, numeric_scale
-        FROM information_schema.columns
-        WHERE table_schema = 'public'
-          AND (target_tables IS NULL OR table_name = ANY(target_tables))
-        ORDER BY table_name, ordinal_position) c),
-      'constraints', (SELECT jsonb_agg(row_to_json(c)) FROM (
-        SELECT constraint_name, table_name, constraint_type
-        FROM information_schema.table_constraints
-        WHERE table_schema = 'public'
-          AND (target_tables IS NULL OR table_name = ANY(target_tables))) c),
-      'key_columns', (SELECT jsonb_agg(row_to_json(k)) FROM (
-        SELECT constraint_name, table_name, column_name, ordinal_position
-        FROM information_schema.key_column_usage
-        WHERE table_schema = 'public'
-          AND (target_tables IS NULL OR table_name = ANY(target_tables))
-        ORDER BY constraint_name, ordinal_position) k),
-      'referential', (SELECT jsonb_agg(row_to_json(r)) FROM (
-        SELECT constraint_name, unique_constraint_name, delete_rule, update_rule
-        FROM information_schema.referential_constraints
-        WHERE constraint_schema = 'public') r),
-      'indexes', (SELECT jsonb_agg(row_to_json(i)) FROM (
-        SELECT indexname, tablename, indexdef
-        FROM pg_indexes
-        WHERE schemaname = 'public'
-          AND (target_tables IS NULL OR tablename = ANY(target_tables))
-          AND indexname NOT LIKE '%_pkey'
-          AND indexname NOT LIKE '%_key') i)
+        'columns', (
+        SELECT jsonb_agg(row_to_json(c)) FROM (
+            SELECT table_name, column_name, ordinal_position, column_default,
+                is_nullable, data_type, udt_name,
+                character_maximum_length, numeric_precision, numeric_scale
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+            AND (target_tables IS NULL OR table_name = ANY(target_tables))
+            ORDER BY table_name, ordinal_position
+        ) c
+        ),
+        'constraints', (
+        SELECT jsonb_agg(row_to_json(c)) FROM (
+            SELECT constraint_name, table_name, constraint_type
+            FROM information_schema.table_constraints
+            WHERE table_schema = 'public'
+            AND (target_tables IS NULL OR table_name = ANY(target_tables))
+        ) c
+        ),
+        'key_columns', (
+        SELECT jsonb_agg(row_to_json(k)) FROM (
+            SELECT constraint_name, table_name, column_name, ordinal_position
+            FROM information_schema.key_column_usage
+            WHERE table_schema = 'public'
+            AND (target_tables IS NULL OR table_name = ANY(target_tables))
+            ORDER BY constraint_name, ordinal_position
+        ) k
+        ),
+        'referential', (
+        SELECT jsonb_agg(row_to_json(r)) FROM (
+            SELECT constraint_name, unique_constraint_name, delete_rule, update_rule
+            FROM information_schema.referential_constraints
+            WHERE constraint_schema = 'public'
+        ) r
+        ),
+        'indexes', (
+        SELECT jsonb_agg(row_to_json(i)) FROM (
+            SELECT indexname, tablename, indexdef
+            FROM pg_indexes
+            WHERE schemaname = 'public'
+            AND (target_tables IS NULL OR tablename = ANY(target_tables))
+            AND indexname NOT LIKE '%_pkey'
+            AND indexname NOT LIKE '%_key'
+        ) i
+        ),
+        'identity_columns', (SELECT jsonb_agg(row_to_json(ic)) FROM (
+        SELECT
+            c.relname  AS table_name,
+            a.attname  AS column_name,
+            a.attidentity AS identity_type   -- 'a' = ALWAYS, 'd' = BY DEFAULT
+        FROM pg_catalog.pg_attribute a
+        JOIN pg_catalog.pg_class     c ON c.oid = a.attrelid
+        JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname   = 'public'
+            AND a.attidentity IN ('a', 'd')
+            AND (target_tables IS NULL OR c.relname = ANY(target_tables))
+        ) ic
+        )
     ) INTO result;
     RETURN result;
-  END; $$;
+    END; $$;
 
 Usage:
     python supabase_backup.py \
@@ -204,6 +233,13 @@ def build_schema(schema_info, tables):
     key_columns = schema_info.get("key_columns") or []
     referential = schema_info.get("referential") or []
     indexes     = schema_info.get("indexes")     or []
+    identity_raw = schema_info.get("identity_columns") or []
+
+
+    identity_map = {
+        (r["table_name"], r["column_name"]): r["identity_type"]
+        for r in identity_raw
+    }
 
     table_cols = defaultdict(list)
     for row in columns:
@@ -228,11 +264,17 @@ def build_schema(schema_info, tables):
             continue
         col_lines = []
         for col in cols:
-            cname   = col["column_name"]
-            ctype   = col_type_sql(col)
-            notnull = " NOT NULL" if col["is_nullable"] == "NO" else ""
-            default = f" DEFAULT {col['column_default']}" if col.get("column_default") else ""
-            col_lines.append(f'    "{cname}" {ctype}{notnull}{default}')
+            cname      = col["column_name"]
+            ctype      = col_type_sql(col)
+            id_type    = identity_map.get((table, cname))
+            if id_type == 'a':
+                col_lines.append(f'    "{cname}" {ctype} GENERATED ALWAYS AS IDENTITY')
+            elif id_type == 'd':
+                col_lines.append(f'    "{cname}" {ctype} GENERATED BY DEFAULT AS IDENTITY')
+            else:
+                notnull = " NOT NULL" if col["is_nullable"] == "NO" else ""
+                default = f" DEFAULT {col['column_default']}" if col.get("column_default") else ""
+                col_lines.append(f'    "{cname}" {ctype}{notnull}{default}')
         lines.append(f'CREATE TABLE IF NOT EXISTS "{table}" (')
         lines.append(",\n".join(col_lines))
         lines.append(");")
@@ -363,15 +405,26 @@ def sql_literal(v):
     return "'" + str(v).replace("'", "''") + "'"
 
 
-def rows_to_sql(table, rows):
+def rows_to_sql(table, rows, identity_cols=None):
     if not rows:
         return [f"-- (no rows in {table})"]
-    cols = ", ".join(f'"{c}"' for c in rows[0])
-    return [
-        f'INSERT INTO "{table}" ({cols}) VALUES '
+    identity_cols = identity_cols or set()
+    all_cols = list(rows[0].keys())
+    cols = ", ".join(f'"{c}"' for c in all_cols)
+    override = " OVERRIDING SYSTEM VALUE" if any(c in identity_cols for c in all_cols) else ""
+    statements = [
+        f'INSERT INTO "{table}" ({cols}){override} VALUES '
         f'({", ".join(sql_literal(v) for v in row.values())}) ON CONFLICT DO NOTHING;'
         for row in rows
     ]
+    # Reset identity sequences so next app insert continues from correct value
+    for col in identity_cols:
+        if col in all_cols:
+            statements.append(
+                f"SELECT setval(pg_get_serial_sequence('\"{table}\"', '{col}'), "
+                f"COALESCE((SELECT MAX(\"{col}\") FROM \"{table}\"), 0) + 1, false);"
+            )
+    return statements
 
 
 def main():
@@ -463,6 +516,12 @@ def main():
             "-- ============================================================", "",
             "BEGIN;", "",
         ]
+
+        identity_raw = (schema_info.get("identity_columns") or []) if schema_info else []
+        identity_cols_by_table = defaultdict(set)
+        for r in identity_raw:
+            identity_cols_by_table[r["table_name"]].add(r["column_name"])
+
         total = 0
         for table in tables:
             print(f"  -> {table} ...", end=" ", flush=True)
@@ -470,7 +529,7 @@ def main():
             print(f"{len(rows)} rows")
             total += len(rows)
             lines.append(f"-- {table}  ({len(rows)} rows)")
-            lines += rows_to_sql(table, rows)
+            lines += rows_to_sql(table, rows, identity_cols=identity_cols_by_table.get(table))
             lines.append("")
         lines += ["COMMIT;", "", f"-- Total rows: {total}"]
 

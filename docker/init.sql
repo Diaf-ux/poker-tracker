@@ -1,15 +1,6 @@
 -- SCHEMA --
-CREATE TABLE IF NOT EXISTS "game_players" (
-    "id" bigint NOT NULL,
-    "game_id" bigint,
-    "name" text NOT NULL,
-    "start_chips" integer NOT NULL,
-    "final_chips" integer NOT NULL,
-    "diff_rub" double precision NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS "games" (
-    "id" bigint NOT NULL,
+    "id" bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     "name" text NOT NULL,
     "date_str" text,
     "chips_per_rub" double precision NOT NULL,
@@ -20,12 +11,21 @@ CREATE TABLE IF NOT EXISTS "games" (
 );
 
 CREATE TABLE IF NOT EXISTS "payments" (
-    "id" bigint NOT NULL,
+    "id" bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     "from_name" text NOT NULL,
     "to_name" text NOT NULL,
     "amount" numeric NOT NULL,
     "created_at" timestamp with time zone DEFAULT now(),
     "game_ids" text DEFAULT ''::text
+);
+
+CREATE TABLE IF NOT EXISTS "game_players" (
+    "id" bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+    "game_id" bigint,
+    "name" text NOT NULL,
+    "start_chips" integer NOT NULL,
+    "final_chips" integer NOT NULL,
+    "diff_rub" double precision NOT NULL
 );
 
 ALTER TABLE "game_players" ADD CONSTRAINT "game_players_pkey" PRIMARY KEY ("id");

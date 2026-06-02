@@ -139,34 +139,34 @@ def _build_map(raw_names: set[str], candidate_fn) -> dict[str, str]:
 
 
 def build_name_map(sql: str) -> dict[str, str]:
-    """Collect every real player name and assign unique salted aliases."""
     names: set[str] = set()
 
-    for _, _, _, values_str in _find_values_blocks(sql, "game_players"):
+    for _, _, _, values_str, col_names in _find_values_blocks(sql, "game_players"):
         vals = _parse_values(values_str)
-        if len(vals) >= 3:
-            names.add(_unquote(vals[2]))
+        idx = col_names.index("name") if "name" in col_names else None
+        if idx is not None and idx < len(vals):
+            names.add(_unquote(vals[idx]))
 
-    for _, _, _, values_str in _find_values_blocks(sql, "payments"):
+    for _, _, _, values_str, col_names in _find_values_blocks(sql, "payments"):
         vals = _parse_values(values_str)
-        if len(vals) >= 3:
-            names.add(_unquote(vals[1]))
-            names.add(_unquote(vals[2]))
+        for col in ("from_name", "to_name"):
+            idx = col_names.index(col) if col in col_names else None
+            if idx is not None and idx < len(vals):
+                names.add(_unquote(vals[idx]))
 
     return _build_map(names, _candidate_alias)
 
 
 def build_game_map(sql: str) -> dict[str, str]:
-    """Collect every real game name and assign unique salted aliases."""
     names: set[str] = set()
 
-    for _, _, _, values_str in _find_values_blocks(sql, "games"):
+    for _, _, _, values_str, col_names in _find_values_blocks(sql, "games"):
         vals = _parse_values(values_str)
-        if len(vals) >= 2:
-            names.add(_unquote(vals[1]))
+        idx = col_names.index("name") if "name" in col_names else None
+        if idx is not None and idx < len(vals):
+            names.add(_unquote(vals[idx]))
 
     return _build_map(names, _candidate_game_alias)
-
 
 # ---------------------------------------------------------------------------
 # SQL rewriting
@@ -180,9 +180,10 @@ def _find_values_blocks(sql: str, table: str):
     start/end are the positions of the outer '(' and the matching ')'.
     """
     prefix_re = re.compile(
-        r'INSERT INTO "' + re.escape(table) + r'" \([^)]+\) VALUES \('
-    )
+    r'INSERT INTO "' + re.escape(table) + r'" \(([^)]+)\)(?:\s+OVERRIDING\s+\S+\s+VALUE)?\s+VALUES \('
+)
     for m in prefix_re.finditer(sql):
+        col_names = [c.strip().strip('"') for c in m.group(1).split(",")]
         open_pos = m.end() - 1          # position of the opening '('
         depth = 0
         in_quote = False
@@ -204,45 +205,44 @@ def _find_values_blocks(sql: str, table: str):
                     if depth == 0:
                         close_pos = i
                         values_str = sql[open_pos + 1 : close_pos]
-                        yield m.group(0)[: -1], open_pos, close_pos, values_str
+                        yield m.group(0)[: -1], open_pos, close_pos, values_str, col_names
                         break
             i += 1
 
 
 def _rewrite_table(sql: str, table: str, replacer) -> str:
-    """
-    Apply replacer(prefix, values_str) -> new_values_str for every INSERT
-    into the given table.  Processes matches right-to-left so offsets stay valid.
-    """
     blocks = list(_find_values_blocks(sql, table))
-    parts = list(sql)                   # mutable char list for in-place splicing
-    for prefix, open_pos, close_pos, values_str in reversed(blocks):
-        new_vals = replacer(prefix, values_str)
+    parts = list(sql)
+    for prefix, open_pos, close_pos, values_str, col_names in reversed(blocks):
+        new_vals = replacer(prefix, values_str, col_names)
         parts[open_pos : close_pos + 1] = list(f"({new_vals})")
     return "".join(parts)
 
 
 def replace_names_in_sql(sql: str, name_map: dict, game_map: dict) -> str:
-    def replace_game_players(prefix, values_str):
+    def replace_game_players(prefix, values_str, col_names):
         vals = _parse_values(values_str)
-        if len(vals) >= 3:
-            original = _unquote(vals[2])
-            vals[2] = _quote(name_map.get(original, original))
+        idx = col_names.index("name") if "name" in col_names else None
+        if idx is not None and idx < len(vals):
+            original = _unquote(vals[idx])
+            vals[idx] = _quote(name_map.get(original, original))
         return ', '.join(vals)
 
-    def replace_payments(prefix, values_str):
+    def replace_payments(prefix, values_str, col_names):
         vals = _parse_values(values_str)
-        if len(vals) >= 3:
-            for idx in (1, 2):
+        for col in ("from_name", "to_name"):
+            idx = col_names.index(col) if col in col_names else None
+            if idx is not None and idx < len(vals):
                 original = _unquote(vals[idx])
                 vals[idx] = _quote(name_map.get(original, original))
         return ', '.join(vals)
 
-    def replace_games(prefix, values_str):
+    def replace_games(prefix, values_str, col_names):
         vals = _parse_values(values_str)
-        if len(vals) >= 2:
-            original = _unquote(vals[1])
-            vals[1] = _quote(game_map.get(original, original))
+        idx = col_names.index("name") if "name" in col_names else None
+        if idx is not None and idx < len(vals):
+            original = _unquote(vals[idx])
+            vals[idx] = _quote(game_map.get(original, original))
         return ', '.join(vals)
 
     sql = _rewrite_table(sql, "game_players", replace_game_players)
