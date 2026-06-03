@@ -16,6 +16,7 @@
         - [x] fix
     - [ ] visualize paid/unpaid transactions
     - [ ] check if game gets closed when all the transactions completed
+- [ ] fix db connection issues
 - [ ] fix timer working while sleeping
 - [ ] fix winrate bug (Eugen case WL 6/6, WR 46%)
 - [ ] EPIC: fix UI state bugs
