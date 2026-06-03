@@ -228,18 +228,24 @@ function _doUpdateDebts() {
         var players = results[0], allPayments = results[1] || [];
         if (!players || !players.length) return;
         var balances = aggregateBalances(players);
+        allPayments.forEach(function (p) {
+            if (!p.game_ids) return; // payment has no game context, skip
+            var relevant = selected.some(function (gid) {
+                return p.game_ids.indexOf(',' + gid + ',') !== -1;
+            });
+            if (!relevant) return;
+            var amount = Number(p.amount);
+            // from_name already paid `amount`, so their debt is reduced
+            var payer = balances.find(function (b) { return b.name === p.from_name; });
+            // to_name already received `amount`, so their credit is reduced
+            var payee = balances.find(function (b) { return b.name === p.to_name; });
+            if (payer) payer.balance += amount;
+            if (payee) payee.balance -= amount;
+        });
         var txs = minimizeTransactions(balances);
-        var displayTxs = txs.map(function (t) {
-            var paid = allPayments.filter(function (p) {
-                if (p.from_name !== t.from || p.to_name !== t.to) return false;
-                if (!p.game_ids) return false;
-                return selected.some(function (gid) { return p.game_ids.indexOf(',' + gid + ',') !== -1; });
-            }).reduce(function (s, p) { return s + Number(p.amount); }, 0);
-            return { from: t.from, to: t.to, original: t.amount, remaining: Math.max(0, t.amount - paid) };
-        }).filter(function (t) { return t.remaining > 0.005; })
-          .filter(function (t) {
-              return !activePlayerFilter || t.from === activePlayerFilter || t.to === activePlayerFilter;
-          });
+        var displayTxs = txs.filter(function (t) {
+            return !activePlayerFilter || t.from === activePlayerFilter || t.to === activePlayerFilter;
+        });
 
         // скрываем кнопку "Посчитать", т.к. показываем результат
         var calcPanel = document.getElementById('calc-debts-panel');
@@ -258,8 +264,8 @@ function _doUpdateDebts() {
                         '<span><b>' + escHtml(t.from) + '</b></span>' +
                         '<span class="arrow">→</span>' +
                         '<span><b>' + escHtml(t.to) + '</b></span>' +
-                        '<span class="amount">' + t.remaining.toFixed(2) + ' р</span>' +
-                        '<button class="settle-btn" onclick="settleDebt(\'' + escHtml(t.from) + '\',\'' + escHtml(t.to) + '\',' + t.remaining.toFixed(2) + ')">✓ Оплатил</button>' +
+                        '<span class="amount">' + t.amount.toFixed(2) + ' р</span>' +
+                        '<button class="settle-btn" onclick="settleDebt(\'' + escHtml(t.from) + '\',\'' + escHtml(t.to) + '\',' + t.amount.toFixed(2) + ')">✓ Оплатил</button>' +
                         '</li>';
                 }).join('') + '</ul>';
         }

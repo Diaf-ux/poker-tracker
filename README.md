@@ -8,12 +8,13 @@
     - [x] EXTRA: add button "Отменить выбор"
 - [x] Dockerize to make a dev env
 - [ ] [Iteration II] Ensure correct transactions calculations and confirmation (Joja case)
-    - [ ] anonymize original pgdump and reproduce
+    - [x] anonymize original pgdump and reproduce
         - [x] find a way do make a dump
         - [x] anonymize
         - [x] integrate with dev
-        - [ ] understand incorrect behaviour nature and reproduce
-        - [ ] fix
+        - [x] understand incorrect behaviour nature and reproduce
+        - [x] fix
+    - [ ] visualize paid/unpaid transactions
     - [ ] check if game gets closed when all the transactions completed
 - [ ] fix timer working while sleeping
 - [ ] fix winrate bug (Eugen case WL 6/6, WR 46%)
