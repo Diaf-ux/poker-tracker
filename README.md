@@ -1,4 +1,4 @@
-# Покер трекер
+# Pocker tracker
 
 A single-page web app for tracking chip counts, results, and who-owes-who across home poker games
 with friends. Runs as a Telegram Mini App (via `telegram-web-app.js`), and works as a regular
@@ -43,6 +43,9 @@ Postgres   (games / game_players / payments tables)
 - `docker/` — dev-only nginx config, local Supabase-config override, and the Postgres schema
   (`init.sql`) mirroring production.
 - `scripts/` — Python backup/anonymization scripts (see Backups below).
+- `tests/` — automated test suite (see Testing below).
+- `docs/` — write-ups too detailed for `README.md`/`.claude/CLAUDE.md` (known issues, investigation
+  notes).
 
 Scripts are loaded in a fixed order in `index.html` (config → utils → blind-timer → setup → game →
 results → history) and share state via globals — there are no ES modules.
@@ -89,8 +92,20 @@ Other common commands:
 
 Run `just` with no arguments to list all available recipes.
 
-There is no automated test suite; verify changes by running `just up` and exercising the app in a
-browser.
+## Testing
+
+```sh
+just test
+```
+
+Runs the suite in `tests/` (game creation/rebuy/results, history and leaderboard display, multi-game
+debt settlement, chip-conservation validation, auto-close-on-settle) against the running dev stack,
+driven from a throwaway Chromium container attached to the same Docker network the dev stack runs
+on. It never touches `localhost:3000` directly — that also makes it work identically for an AI agent
+that only has Docker access and no direct network route to published ports (see
+[`.claude/CLAUDE.md`](.claude/CLAUDE.md)). `just test` starts the dev stack for you if it isn't
+already running. Add or update a scenario in `tests/scenarios/` alongside any change to a critical
+flow.
 
 ## Backups
 
@@ -115,10 +130,10 @@ git config core.hooksPath .githooks
 
 Currently included:
 
-- **`pre-commit`** — asks a yes/no question at commit time ("Have you updated the documentation for
-  this commit?"). It's a manual honesty check, not a diff-based linter — it doesn't inspect what
-  you changed, it just asks. Answer honestly, or skip once with `git commit --no-verify` when a
-  commit genuinely has no doc implications.
+- **`pre-commit`** — asks two yes/no questions at commit time: whether you've updated the
+  documentation, and whether you've added/updated tests for the change. It's a manual honesty check,
+  not a diff-based linter — it doesn't inspect what you changed, it just asks. Answer honestly, or
+  skip once with `git commit --no-verify` when a commit genuinely has no doc/test implications.
 
 ## Roadmap
 

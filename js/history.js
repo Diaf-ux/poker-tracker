@@ -220,6 +220,40 @@ function getPayments() {
     });
 }
 
+// Computes remaining debt + already-paid transactions for a given set of game
+// ids, netting recorded `payments` against the raw diff_rub balances (clamped
+// per-side so a payment covering a wider group of games than `gameIds` can
+// never flip a balance past zero - see docs/known-issue-payment-clamp-residual.md
+// for the residual this can still leave behind). Shared by `_doUpdateDebts()`
+// and the post-settle auto-close check in `settleDebt()`.
+function computeRemainingDebt(gameIds) {
+    return Promise.all([
+        sbFetch('game_players?game_id=in.(' + gameIds.join(',') + ')&select=name,diff_rub'),
+        getPayments()
+    ]).then(function (results) {
+        var players = results[0] || [], allPayments = results[1] || [];
+        var balances = aggregateBalances(players);
+        var paidTxs = [];
+        allPayments.forEach(function (p) {
+            if (!p.game_ids) return; // payment has no game context, skip
+            var pGameIds = p.game_ids.split(',').filter(Boolean);
+            var relevant = pGameIds.some(function (gid) { return gameIds.indexOf(gid) !== -1; });
+            if (!relevant) return;
+            var amount = Number(p.amount);
+            // from_name already paid `amount`, so their debt is reduced
+            var payer = balances.find(function (b) { return b.name === p.from_name; });
+            // to_name already received `amount`, so their credit is reduced
+            var payee = balances.find(function (b) { return b.name === p.to_name; });
+            if (payer) payer.balance += Math.min(amount, Math.max(0, -payer.balance));
+            if (payee) payee.balance -= Math.min(amount, Math.max(0, payee.balance));
+            var extraGames = pGameIds.filter(function (gid) { return gameIds.indexOf(gid) === -1; }).length;
+            paidTxs.push({ from: p.from_name, to: p.to_name, amount: amount, extraGames: extraGames });
+        });
+        var txs = minimizeTransactions(balances);
+        return { balances: balances, txs: txs, paidTxs: paidTxs };
+    });
+}
+
 function _doUpdateDebts() {
     var selected = Array.from(document.querySelectorAll('.game-checkbox:checked'))
         .map(function (cb) { return cb.dataset.id; });
@@ -240,34 +274,29 @@ function _doUpdateDebts() {
     var calcPanel = document.getElementById('calc-debts-panel');
     if (calcPanel) calcPanel.style.display = 'none';
 
-    Promise.all([
-        sbFetch('game_players?game_id=in.(' + selected.join(',') + ')&select=name,diff_rub'),
-        getPayments()
-    ]).then(function (results) {
-        var players = results[0], allPayments = results[1] || [];
-        if (!players || !players.length) return;
-        var balances = aggregateBalances(players);
-        var paidTxs = [];
-        allPayments.forEach(function (p) {
-            if (!p.game_ids) return; // payment has no game context, skip
-            var pGameIds = p.game_ids.split(',').filter(Boolean);
-            var relevant = pGameIds.some(function (gid) { return selected.indexOf(gid) !== -1; });
-            if (!relevant) return;
-            var amount = Number(p.amount);
-            // from_name already paid `amount`, so their debt is reduced
-            var payer = balances.find(function (b) { return b.name === p.from_name; });
-            // to_name already received `amount`, so their credit is reduced
-            var payee = balances.find(function (b) { return b.name === p.to_name; });
-            // a payment's game_ids can span more games than are currently selected
-            // (e.g. it settled a combined debt across several games at once) - clamp
-            // so applying it here can never flip a balance past zero into the wrong
-            // direction, it can only ever settle debt that actually exists in this view
-            if (payer) payer.balance += Math.min(amount, Math.max(0, -payer.balance));
-            if (payee) payee.balance -= Math.min(amount, Math.max(0, payee.balance));
-            var extraGames = pGameIds.filter(function (gid) { return selected.indexOf(gid) === -1; }).length;
-            paidTxs.push({ from: p.from_name, to: p.to_name, amount: amount, extraGames: extraGames });
-        });
-        var txs = minimizeTransactions(balances);
+    computeRemainingDebt(selected).then(function (result) {
+        var txs = result.txs, paidTxs = result.paidTxs;
+
+        // Single-game auto-close: one game's own zero balance is unambiguous
+        // proof it's settled (whether via a payment or a naturally-even game),
+        // unlike a multi-game combined balance which can zero out coincidentally
+        // without any real payment (see the plan discussion) - that case is only
+        // ever auto-closed from settleDebt()'s success path, not from here.
+        if (selected.length === 1 && txs.length === 0) {
+            var soleGameId = selected[0];
+            var soleGame = allGamesCache && allGamesCache.find(function (g) { return String(g.id) === String(soleGameId); });
+            if (soleGame && !soleGame.is_closed) {
+                sbFetch('games?id=eq.' + soleGameId, {
+                    method: 'PATCH',
+                    headers: { 'Prefer': 'return=minimal' },
+                    body: JSON.stringify({ is_closed: true })
+                }).then(function () {
+                    soleGame.is_closed = true;
+                    renderHistoryCards(allGamesCache);
+                }).catch(function (e) { console.warn('[auto-close] failed:', e.message); });
+            }
+        }
+
         var displayTxs = txs.filter(function (t) {
             return !activePlayerFilter || t.from === activePlayerFilter || t.to === activePlayerFilter;
         });
@@ -282,7 +311,15 @@ function _doUpdateDebts() {
         var titleLabel = activePlayerFilter
             ? 'Долги ' + escHtml(activePlayerFilter) + ' за ' + selected.length + ' игр:'
             : 'Итоговые долги за ' + selected.length + ' игр:';
-        var html = '<div style="color:var(--gold);font-weight:700;margin-bottom:10px;">' + titleLabel + '</div>';
+        // A payment covering a wider group of games than the current selection can
+        // clamp asymmetrically (see minimizeTransactions()'s _residual and
+        // docs/known-issue-payment-clamp-residual.md) and leave some players' debts
+        // silently missing from displayTxs - flag it instead of hiding it.
+        var residualNote = txs._residual
+            ? '<div style="color:var(--text-muted);font-size:0.8em;margin-bottom:8px;">⚠️ Небольшое расхождение в расчётах (' +
+              txs._residual.toFixed(2) + ' р) — часть долгов могла не попасть в список. Проверьте платежи вручную.</div>'
+            : '';
+        var html = residualNote + '<div style="color:var(--gold);font-weight:700;margin-bottom:10px;">' + titleLabel + '</div>';
         if (!displayTxs.length) {
             html += '<div style="color:var(--green-light);">✅ Все долги оплачены!</div>';
         } else {
@@ -327,12 +364,39 @@ function settleDebt(fromName, toName, amount) {
             body: JSON.stringify({ from_name: fromName, to_name: toName, amount: amount, game_ids: gameIdsStr })
         }).then(function () {
             paymentsCache = null;
-            if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+            if (tg && tg.HapticFeedback) { try { tg.HapticFeedback.notificationOccurred('success'); } catch (e) {} }
             _doUpdateDebts();
+            // Multi-game auto-close: only ever triggered right after a payment we
+            // just recorded for this exact selection - never from merely viewing/
+            // recomputing an old combination that happens to net to zero on its own
+            // (two games with opposite, unpaid debts could coincidentally cancel out).
+            if (selectedIds.length > 1) {
+                computeRemainingDebt(selectedIds).then(function (result) {
+                    if (result.txs.length !== 0) return;
+                    sbFetch('games?id=in.(' + selectedIds.join(',') + ')', {
+                        method: 'PATCH',
+                        headers: { 'Prefer': 'return=minimal' },
+                        body: JSON.stringify({ is_closed: true })
+                    }).then(function () {
+                        // Update the in-memory cache and re-render from it instead of
+                        // a full renderHistory() refetch - avoids a race where a fresh
+                        // fetch replaces the DOM (including calc-debts-panel) out from
+                        // under a `_doUpdateDebts()` computation the user may have
+                        // already started against the current elements.
+                        if (allGamesCache) {
+                            allGamesCache.forEach(function (g) {
+                                if (selectedIds.indexOf(String(g.id)) !== -1) g.is_closed = true;
+                            });
+                            renderHistoryCards(allGamesCache);
+                        }
+                    }).catch(function (e) { console.warn('[auto-close] failed:', e.message); });
+                });
+            }
         }).catch(function (e) { showAlert(e.message); });
     }
-    if (tg && tg.showConfirm) { tg.showConfirm(confirmMsg, function (ok) { if (ok) doSettle(); }); }
-    else { if (confirm(confirmMsg)) doSettle(); }
+    tgSafeCall('showConfirm', [confirmMsg, function (ok) { if (ok) doSettle(); }], function () {
+        if (confirm(confirmMsg)) doSettle();
+    });
 }
 
 function deleteGame(gameId) {
@@ -347,8 +411,9 @@ function deleteGame(gameId) {
                 paymentsCache = null; renderHistory();
             }).catch(function (e) { showAlert('Ошибка удаления: ' + e.message); });
     }
-    if (tg && tg.showConfirm) { tg.showConfirm('Удалить эту игру?', function (ok) { if (ok) executeDelete(); }); }
-    else { if (confirm('Удалить эту игру?')) executeDelete(); }
+    tgSafeCall('showConfirm', ['Удалить эту игру?', function (ok) { if (ok) executeDelete(); }], function () {
+        if (confirm('Удалить эту игру?')) executeDelete();
+    });
 }
 
 function updateCalcBtnLabel() {

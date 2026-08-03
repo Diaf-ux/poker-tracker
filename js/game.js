@@ -51,7 +51,7 @@ function addChips(idx) {
     setTimeout(function () { card.style.borderColor = ''; }, 700);
     input.value = '';
     input.focus();
-    if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+    if (tg && tg.HapticFeedback) { try { tg.HapticFeedback.impactOccurred('light'); } catch (e) {} }
 }
 
 function updateHistoryLog(i) {

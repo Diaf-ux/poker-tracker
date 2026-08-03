@@ -88,7 +88,7 @@ function blindLevelChange(dir, auto) {
     bt.level = newLevel;
     bt.secsLeft = bt.levelDuration * 60;
     if (auto) {
-        if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('warning');
+        if (tg && tg.HapticFeedback) { try { tg.HapticFeedback.notificationOccurred('warning'); } catch (e) {} }
         var lvl = bt.schedule[bt.level];
         showAlert('⬆️ Уровень ' + (bt.level + 1) + '  ·  Блайнды ' + lvl.sb + ' / ' + lvl.bb);
     }

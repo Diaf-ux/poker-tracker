@@ -15,6 +15,15 @@ function minimizeTransactions(balances) {
         if (Math.abs(d.balance) < eps) di++;
         if (Math.abs(c.balance) < eps) ci++;
     }
+    // Defensive: Σ balances should be ~0. If real drift remains (not just fp
+    // dust from clamping elsewhere), the loop above would otherwise silently
+    // drop it - surface it instead of hiding it.
+    var leftover = debtors.slice(di).reduce(function (s, d) { return s + d.balance; }, 0)
+        + creditors.slice(ci).reduce(function (s, c) { return s + c.balance; }, 0);
+    if (Math.abs(leftover) > 1) {
+        console.warn('[minimizeTransactions] unsettled residual balance detected:', leftover, balances);
+        txs._residual = leftover;
+    }
     return txs;
 }
 
@@ -143,7 +152,7 @@ function showResultsSection(playerResults) {
     }
     document.getElementById('final-input-section').style.display = 'none';
     document.getElementById('results-section').style.display = 'block';
-    if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    if (tg && tg.HapticFeedback) { try { tg.HapticFeedback.notificationOccurred('success'); } catch (e) {} }
 }
 
 function calculateResults() {
@@ -171,6 +180,13 @@ function calculateResults() {
             }
             return v;
         });
+        var totalFinal = finals.reduce(function (s, v) { return s + v; }, 0);
+        var totalStart = state.players.reduce(function (s, p) { return s + p.startChips; }, 0);
+        if (totalFinal !== totalStart) {
+            showAlert('Сумма фишек не сходится: ' + totalFinal + ' ≠ ' + totalStart +
+                ' (разница: ' + (totalFinal > totalStart ? '+' : '') + (totalFinal - totalStart) + '). Проверьте ввод.');
+            throw '';
+        }
         state.players.forEach(function (p, i) {
             p.finalChips = finals[i];
             p.diffRub = (finals[i] - p.startChips) / state.chipsPerRub;
@@ -183,7 +199,7 @@ function settleTx(idx) {
     var li = document.getElementById('tx-' + idx);
     li.classList.add('settled');
     li.querySelector('.settle-btn').disabled = true;
-    if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+    if (tg && tg.HapticFeedback) { try { tg.HapticFeedback.impactOccurred('medium'); } catch (e) {} }
 }
 
 function saveAndNewGame() {
@@ -219,7 +235,7 @@ function saveAndNewGame() {
         return sbFetch('game_players', { method: 'POST', body: JSON.stringify(playersData) });
     }).then(function () {
         clearTimeout(safetyTimer);
-        if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+        if (tg && tg.HapticFeedback) { try { tg.HapticFeedback.notificationOccurred('success'); } catch (e) {} }
         btn.disabled = false; btn.innerHTML = '💾 Сохранить и новая игра';
         showAlert('Игра сохранена! ✅', function () { newGame(); });
     }).catch(function (e) {

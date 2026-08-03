@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Asks a yes/no question on every commit so documentation doesn't silently
-# drift from the code. No file-diff heuristics — it just trusts the answer.
+# Asks yes/no questions on every commit so documentation and tests don't
+# silently drift from the code. No file-diff heuristics — it just trusts the
+# answers.
 set -uo pipefail
 
 TIMEOUT=20
@@ -16,24 +17,31 @@ fi
 # All user-facing output below goes to fd 3 (the tty), not stderr — git
 # buffers/hides a hook's stderr in some setups (VS Code's integrated
 # terminal among them), so messages written there may never be seen.
-printf '%s' "Have you updated the documentation for this commit? [y/N] " >&3
-if ! read -r -t "$TIMEOUT" answer <&3; then
-  printf '\nNo answer received within %ss - aborting instead of hanging.\n' "$TIMEOUT" >&3
-  printf 'Commit from an interactive terminal, or skip once with: git commit --no-verify\n' >&3
-  exec 3<&-
-  exit 1
-fi
-
-case "$answer" in
-  [yY]|[yY][eE][sS])
-    exec 3<&-
-    exit 0
-    ;;
-  *)
-    printf 'Commit aborted: update the docs, then commit again.\n' >&3
-    printf "If this commit genuinely doesn't need a doc update, answer 'y'.\n" >&3
-    printf 'To skip this check once: git commit --no-verify\n' >&3
+ask() {
+  local prompt="$1" err_msg="$2" answer
+  printf '%s' "$prompt" >&3
+  if ! read -r -t "$TIMEOUT" answer <&3; then
+    printf '\nNo answer received within %ss - aborting instead of hanging.\n' "$TIMEOUT" >&3
+    printf 'Commit from an interactive terminal, or skip once with: git commit --no-verify\n' >&3
     exec 3<&-
     exit 1
-    ;;
-esac
+  fi
+  case "$answer" in
+    [yY]|[yY][eE][sS]) return 0 ;;
+    *)
+      printf '%s\n' "$err_msg" >&3
+      printf 'To skip this check once: git commit --no-verify\n' >&3
+      exec 3<&-
+      exit 1
+      ;;
+  esac
+}
+
+ask "Have you updated the documentation for this commit? [y/N] " \
+    "Commit aborted: update the docs, then commit again. If this commit genuinely doesn't need a doc update, answer 'y'."
+
+ask "Have you added/updated tests for this change? [y/N] " \
+    "Commit aborted: add/update tests, then commit again. If this commit genuinely doesn't need test changes, answer 'y'."
+
+exec 3<&-
+exit 0

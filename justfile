@@ -36,6 +36,17 @@ up-reload:
     docker compose up --build -d
 
 [doc("""
+Run the automated test suite (tests/) against the dev stack via a throwaway
+Chromium container on the same Compose network - works identically for a
+human dev and an agent sandbox without direct localhost:3000 access, since
+both go through container-to-container networking either way.
+""")]
+test: up
+    docker run --rm --network poker-tracker_default \
+        -v "$(pwd)/tests:/tests" -e NODE_PATH=/home/pptruser/node_modules -w /tests \
+        ghcr.io/puppeteer/puppeteer:latest node run-all.js
+
+[doc("""
 Backup Supabase DB to backup/backup-TIMESTAMP.sql using custom script
 Also copies created backup to backup-latest.sql and renames backup-latest-anonymized.sql
 """)]

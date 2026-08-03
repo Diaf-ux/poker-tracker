@@ -12,7 +12,9 @@ application code.
 
 ## Commands
 
-There is no npm/build/lint/test tooling in this repo — don't look for `package.json` scripts.
+There is no npm/build/lint tooling in this repo — don't look for `package.json` scripts. `tests/`
+(see below) is plain Node too, but runs inside the `ghcr.io/puppeteer/puppeteer` Docker image
+against its bundled packages via `NODE_PATH`, so it doesn't need its own `package.json` either.
 Development is driven by `just` (see `justfile`) wrapping Docker Compose:
 
 - `just up` — build and start the dev stack (Postgres + PostgREST + nginx serving the static app) at `localhost:3000`, in the background.
@@ -30,34 +32,22 @@ runs `pg_dump` directly against `SUPABASE_DB_URL` and commits the gzipped dump t
 branch (30-day retention). This is unrelated to the `just backup*` scripts above, which back up via
 REST API instead of a direct DB connection.
 
-No automated test suite exists. Verify changes by running `just up` and exercising the UI in a
-browser at `localhost:3000`.
+`just test` runs the automated suite in `tests/` — see `tests/helpers/env.js` (browser bootstrap),
+`tests/helpers/seed.js` (fixture creation/cleanup), and `tests/scenarios/*.test.js`. Prefer running
+it (or its individual scenario files) over ad-hoc manual verification when touching a critical flow.
 
 ### When the agent sandbox can't reach `localhost:3000` directly
 Some Claude Code sandbox setups have `docker`/`docker exec` access (via a mounted socket) but no
 network route to the host's published ports — `curl localhost:3000` hangs or resets even though
 `just up` succeeded and `docker exec poker-app curl 127.0.0.1:3000` works fine from inside the
-container. If direct `curl`/browser access from the agent's shell doesn't work, don't fight the
-network — verify instead by running a throwaway Chromium container on the same Compose network:
-```sh
-docker pull ghcr.io/puppeteer/puppeteer:latest   # bundles node + chromium
-docker run --rm --network poker-tracker_default \
-  -v /path/to/scripts:/scripts -e NODE_PATH=/home/pptruser/node_modules -w /scripts \
-  ghcr.io/puppeteer/puppeteer:latest node your-test.js
-```
-Notes learned the hard way:
-- Navigate to `http://app:3000` by resolving the hostname to an IP first (`dns.lookup('app')`) —
-  Chromium's HTTPS-Upgrades feature throws `ERR_SSL_PROTOCOL_ERROR` on the bare service hostname
-  `app` (no dot). Passing the resolved IP in the URL sidesteps it (or launch with
-  `--disable-features=HttpsUpgrades,HttpsFirstModeV2`).
-- The real `telegram-web-app.js` SDK's `tg.showConfirm()` throws `WebAppMethodUnsupported` outside
-  an actual Telegram client — set `window.tg = null` after page load to force the app's native
-  `confirm()`/`alert()` fallback path, and register `page.on('dialog', d => d.accept())`.
-- Screenshots/files written by the container must go to a path owned by its default user
-  (`/home/pptruser/...`), not the bind-mounted `/scripts` (host-owned) — write there and
-  `docker cp` the file out, or fix ownership on the mount.
-- Seed/inspect test data via `docker exec poker-app curl http://127.0.0.1:3000/rest/v1/... -H
-  "apikey: local-dev"` (same reasoning: goes through the container, not the host network).
+container. Don't fight the network — use `just test` (or run a one-off script the same way it does:
+a throwaway `ghcr.io/puppeteer/puppeteer` container on the `poker-tracker_default` network), which
+works identically for the agent (Docker-only access) and a human dev (direct `localhost:3000`
+access) since both go through container-to-container networking either way.
+`tests/helpers/env.js`/`seed.js` are the authoritative reference for every gotcha this took to get
+working (bare-hostname `ERR_SSL_PROTOCOL_ERROR`, screenshot container-permission errors, seeding via
+direct PostgREST calls instead of `docker exec .../curl`) — read those before reinventing any of it
+for an ad-hoc script.
 
 ## Architecture
 
@@ -141,10 +131,15 @@ confirm with the user first, same as any other prod-affecting operation.
 ### Documentation upkeep
 `README.md` (onboarding/commands/architecture overview) and this file (deeper implementation
 details for Claude Code) are meant to stay current — there's also a `.githooks/pre-commit` honesty
-check that asks at commit time whether docs were updated, though it doesn't enforce anything. When
-a change alters something a new contributor would need to know to work in this repo — a new
-subsystem, a changed dev workflow, a non-obvious constraint/gotcha, a schema or architecture shift —
-update `README.md` and/or this file (a `docs/` directory can be introduced later if a topic needs
-more space than fits inline). Don't document routine/self-evident changes (a new UI button, a copy
-tweak, a bugfix that doesn't change any documented behavior) — keep these docs high-signal, not a
-changelog.
+check that asks at commit time whether docs (and, separately, tests) were updated, though it doesn't
+enforce anything. When a change alters something a new contributor would need to know to work in
+this repo — a new subsystem, a changed dev workflow, a non-obvious constraint/gotcha, a schema or
+architecture shift — update `README.md` and/or this file; use `docs/` for a write-up too detailed to
+fit inline in either (e.g. `docs/known-issue-payment-clamp-residual.md`). Don't document routine/
+self-evident changes (a new UI button, a copy tweak, a bugfix that doesn't change any documented
+behavior) — keep these docs high-signal, not a changelog.
+
+Keep `tests/` current too: a new or changed critical user flow (game creation, history display,
+multi-game debt settlement, leaderboard stats, or a new validation/auto-behavior like chip
+conservation or auto-close) should get a corresponding scenario in `tests/scenarios/`. Run
+`just test` before considering a change to one of these flows done.

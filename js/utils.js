@@ -80,13 +80,30 @@ function escHtml(s) {
         .replace(/"/g, '&quot;');
 }
 
+// Calls tg.<methodName> safely: real Telegram clients define `tg` and its
+// methods, but calling some of them (confirmed: showConfirm) throws
+// WebAppMethodUnsupported synchronously outside an actual Telegram client
+// (plain browser dev, headless tests) even though the method exists - the
+// `tg && tg.X` existence check alone doesn't catch that. Falls back to the
+// native equivalent on ANY throw. Inside real Telegram this is a no-op: the
+// try succeeds and fallback never runs.
+function tgSafeCall(methodName, args, fallback) {
+    if (tg && typeof tg[methodName] === 'function') {
+        try {
+            tg[methodName].apply(tg, args);
+            return;
+        } catch (e) {
+            console.warn('[tgSafeCall] tg.' + methodName + ' threw, falling back:', e.message);
+        }
+    }
+    fallback();
+}
+
 function showAlert(msg, callback) {
-    if (tg && tg.showAlert) {
-        tg.showAlert(msg, callback || function () {});
-    } else {
+    tgSafeCall('showAlert', [msg, callback || function () {}], function () {
         alert(msg);
         if (callback) callback();
-    }
+    });
 }
 
 function showPage(id) {

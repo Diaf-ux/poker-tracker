@@ -11,7 +11,7 @@ function checkPassword() {
         initSetup();
     } else {
         document.getElementById('auth-error').textContent = 'Неверный пароль';
-        if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+        if (tg && tg.HapticFeedback) { try { tg.HapticFeedback.notificationOccurred('error'); } catch (e) {} }
     }
 }
 
