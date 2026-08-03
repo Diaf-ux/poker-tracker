@@ -1,5 +1,6 @@
 README.md
-repomix*
+TODO.md
+.claude
 Dockerfile
 .env*
-Justfile
+justfile

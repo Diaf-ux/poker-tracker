@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Asks a yes/no question on every commit so documentation doesn't silently
+# drift from the code. No file-diff heuristics — it just trusts the answer.
+set -uo pipefail
+
+TIMEOUT=20
+
+# Git disconnects a hook's stdin from the terminal and buffers its stderr
+# until the hook exits, so both the prompt and the answer must go through
+# the controlling terminal device directly — not fd 0/1/2.
+if ! exec 3<>/dev/tty 2>/dev/null; then
+  # No controlling terminal at all (GUI clients, CI) — nothing to prompt on.
+  exit 0
+fi
+
+# All user-facing output below goes to fd 3 (the tty), not stderr — git
+# buffers/hides a hook's stderr in some setups (VS Code's integrated
+# terminal among them), so messages written there may never be seen.
+printf '%s' "Have you updated the documentation for this commit? [y/N] " >&3
+if ! read -r -t "$TIMEOUT" answer <&3; then
+  printf '\nNo answer received within %ss - aborting instead of hanging.\n' "$TIMEOUT" >&3
+  printf 'Commit from an interactive terminal, or skip once with: git commit --no-verify\n' >&3
+  exec 3<&-
+  exit 1
+fi
+
+case "$answer" in
+  [yY]|[yY][eE][sS])
+    exec 3<&-
+    exit 0
+    ;;
+  *)
+    printf 'Commit aborted: update the docs, then commit again.\n' >&3
+    printf "If this commit genuinely doesn't need a doc update, answer 'y'.\n" >&3
+    printf 'To skip this check once: git commit --no-verify\n' >&3
+    exec 3<&-
+    exit 1
+    ;;
+esac

@@ -36,13 +36,6 @@ up-reload:
     docker compose up --build -d
 
 [doc("""
-WSL-compatible way to run repomix and copy tp clipboard
-""")]
-repomix:
-    repomix
-    cat repomix-output.md | clip.exe
-
-[doc("""
 Backup Supabase DB to backup/backup-TIMESTAMP.sql using custom script
 Also copies created backup to backup-latest.sql and renames backup-latest-anonymized.sql
 """)]
