@@ -14,13 +14,19 @@
         - [x] integrate with dev
         - [x] understand incorrect behaviour nature and reproduce
         - [x] fix
-    - [ ] visualize paid/unpaid transactions
+    - [x] visualize paid/unpaid transactions
     - [ ] check if game gets closed when all the transactions completed
     - [ ] recheck transactions validation
+    - [ ] make `payments` schema adequate for prod:
+        - [ ] `payments.game_ids` is a comma-delimited text column (`,3,7,9,`) instead of a join table — no FK, no referential integrity, matched via `like.*,id,*`
+        - [ ] `payments` isn't linked to `game_players`/`games` at all beyond that text blob — a payment can't be traced back to a specific settlement cleanly
+        - [ ] `games.date_str` is free text, not a `date`/`timestamptz` column
+        - [ ] and possibly others...
 - [x] UI init:
     - [x] Claude, docs and doc `.githook`
     - [x] Supabase MCP
     - [x] Russian banwords doc
+- [ ] fix issue with `tg` initialization on dev
 - [ ] fix db connection issues
 - [ ] fix timer working while sleeping
 - [ ] fix winrate bug (Eugen case WL 6/6, WR 46%)
@@ -29,6 +35,9 @@
     - [ ] fix bug with incorrect game counter display on button when switching between tabs
     - [ ] select/deselect button wrong behaviour when clicking other buttons
     - [ ] other cases...
+- [ ] EPIC: add blackjack
+- [ ] add tests for critical flows
+- [ ] review and refactor documentation
 
 ### Infra
 - [ ] fix `.github/workflows/backup.yml` — daily scheduled backup is currently broken

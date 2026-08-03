@@ -75,6 +75,8 @@ function setPlayerFilter(name) {
 
 function renderHistoryCards(games) {
     var div = document.getElementById('history-content');
+    var prevChecked = Array.from(document.querySelectorAll('.game-checkbox:checked'))
+        .map(function (cb) { return cb.dataset.id; });
     var players = getUniquePlayers(games);
     var filtered = activePlayerFilter
         ? games.filter(function (g) {
@@ -161,6 +163,23 @@ function renderHistoryCards(games) {
             updateSelectOpenedWrap();
         });
     });
+
+    // re-render (e.g. switching the player filter) rebuilds checkboxes from
+    // scratch - restore the previous selection instead of silently dropping it
+    if (prevChecked.length) {
+        document.querySelectorAll('.game-checkbox').forEach(function (cb) {
+            if (prevChecked.indexOf(cb.dataset.id) !== -1) cb.checked = true;
+        });
+    }
+    var stillChecked = document.querySelectorAll('.game-checkbox:checked').length > 0;
+    var calcPanelAfter = document.getElementById('calc-debts-panel');
+    if (calcPanelAfter) calcPanelAfter.style.display = stillChecked ? '' : 'none';
+    updateCalcBtnLabel();
+    updateSelectOpenedWrap();
+    var debtsPanelAfter = document.getElementById('debts-panel');
+    if (debtsPanelAfter) {
+        if (stillChecked) _doUpdateDebts(); else debtsPanelAfter.remove();
+    }
 }
 
 function renderHistory() {
@@ -228,22 +247,31 @@ function _doUpdateDebts() {
         var players = results[0], allPayments = results[1] || [];
         if (!players || !players.length) return;
         var balances = aggregateBalances(players);
+        var paidTxs = [];
         allPayments.forEach(function (p) {
             if (!p.game_ids) return; // payment has no game context, skip
-            var relevant = selected.some(function (gid) {
-                return p.game_ids.indexOf(',' + gid + ',') !== -1;
-            });
+            var pGameIds = p.game_ids.split(',').filter(Boolean);
+            var relevant = pGameIds.some(function (gid) { return selected.indexOf(gid) !== -1; });
             if (!relevant) return;
             var amount = Number(p.amount);
             // from_name already paid `amount`, so their debt is reduced
             var payer = balances.find(function (b) { return b.name === p.from_name; });
             // to_name already received `amount`, so their credit is reduced
             var payee = balances.find(function (b) { return b.name === p.to_name; });
-            if (payer) payer.balance += amount;
-            if (payee) payee.balance -= amount;
+            // a payment's game_ids can span more games than are currently selected
+            // (e.g. it settled a combined debt across several games at once) - clamp
+            // so applying it here can never flip a balance past zero into the wrong
+            // direction, it can only ever settle debt that actually exists in this view
+            if (payer) payer.balance += Math.min(amount, Math.max(0, -payer.balance));
+            if (payee) payee.balance -= Math.min(amount, Math.max(0, payee.balance));
+            var extraGames = pGameIds.filter(function (gid) { return selected.indexOf(gid) === -1; }).length;
+            paidTxs.push({ from: p.from_name, to: p.to_name, amount: amount, extraGames: extraGames });
         });
         var txs = minimizeTransactions(balances);
         var displayTxs = txs.filter(function (t) {
+            return !activePlayerFilter || t.from === activePlayerFilter || t.to === activePlayerFilter;
+        });
+        var displayPaid = paidTxs.filter(function (t) {
             return !activePlayerFilter || t.from === activePlayerFilter || t.to === activePlayerFilter;
         });
 
@@ -266,6 +294,21 @@ function _doUpdateDebts() {
                         '<span><b>' + escHtml(t.to) + '</b></span>' +
                         '<span class="amount">' + t.amount.toFixed(2) + ' р</span>' +
                         '<button class="settle-btn" onclick="settleDebt(\'' + escHtml(t.from) + '\',\'' + escHtml(t.to) + '\',' + t.amount.toFixed(2) + ')">✓ Оплатил</button>' +
+                        '</li>';
+                }).join('') + '</ul>';
+        }
+        if (displayPaid.length) {
+            html += '<div style="color:var(--text-muted);font-weight:700;margin:14px 0 10px;">Уже оплачено:</div>' +
+                '<ul class="transactions" style="margin:0;">' +
+                displayPaid.map(function (t) {
+                    var note = t.extraGames
+                        ? '<div style="opacity:0.7;font-size:0.8em;">Оплачено общим платежом</div>' : '';
+                    return '<li class="settled" style="flex-wrap:wrap;">' +
+                        '<span><b>' + escHtml(t.from) + '</b></span>' +
+                        '<span class="arrow">→</span>' +
+                        '<span><b>' + escHtml(t.to) + '</b></span>' +
+                        '<span class="amount">' + t.amount.toFixed(2) + ' р</span>' +
+                        note +
                         '</li>';
                 }).join('') + '</ul>';
         }

@@ -33,6 +33,32 @@ REST API instead of a direct DB connection.
 No automated test suite exists. Verify changes by running `just up` and exercising the UI in a
 browser at `localhost:3000`.
 
+### When the agent sandbox can't reach `localhost:3000` directly
+Some Claude Code sandbox setups have `docker`/`docker exec` access (via a mounted socket) but no
+network route to the host's published ports — `curl localhost:3000` hangs or resets even though
+`just up` succeeded and `docker exec poker-app curl 127.0.0.1:3000` works fine from inside the
+container. If direct `curl`/browser access from the agent's shell doesn't work, don't fight the
+network — verify instead by running a throwaway Chromium container on the same Compose network:
+```sh
+docker pull ghcr.io/puppeteer/puppeteer:latest   # bundles node + chromium
+docker run --rm --network poker-tracker_default \
+  -v /path/to/scripts:/scripts -e NODE_PATH=/home/pptruser/node_modules -w /scripts \
+  ghcr.io/puppeteer/puppeteer:latest node your-test.js
+```
+Notes learned the hard way:
+- Navigate to `http://app:3000` by resolving the hostname to an IP first (`dns.lookup('app')`) —
+  Chromium's HTTPS-Upgrades feature throws `ERR_SSL_PROTOCOL_ERROR` on the bare service hostname
+  `app` (no dot). Passing the resolved IP in the URL sidesteps it (or launch with
+  `--disable-features=HttpsUpgrades,HttpsFirstModeV2`).
+- The real `telegram-web-app.js` SDK's `tg.showConfirm()` throws `WebAppMethodUnsupported` outside
+  an actual Telegram client — set `window.tg = null` after page load to force the app's native
+  `confirm()`/`alert()` fallback path, and register `page.on('dialog', d => d.accept())`.
+- Screenshots/files written by the container must go to a path owned by its default user
+  (`/home/pptruser/...`), not the bind-mounted `/scripts` (host-owned) — write there and
+  `docker cp` the file out, or fix ownership on the mount.
+- Seed/inspect test data via `docker exec poker-app curl http://127.0.0.1:3000/rest/v1/... -H
+  "apikey: local-dev"` (same reasoning: goes through the container, not the host network).
+
 ## Architecture
 
 ### Script load order matters
@@ -88,6 +114,16 @@ with timeouts and retry/backoff for idempotent (GET/HEAD) requests only.
 Money/chip math throughout is in rub (₽) with a small epsilon (`0.005`) for float-equality checks —
 preserve that epsilon when touching balance/settlement logic.
 
+### Versioning and deploy
+`main` auto-deploys to GitHub Pages, which serves the **production** Telegram Mini App — a push to
+`main` is a real prod release, not a staging step. There's no CI gate for this (no workflow file;
+it's a GitHub Pages "deploy from branch" setting), so nothing currently stops a broken commit from
+going live. The app version is a plain string in `index.html` (search for `v` followed by a
+semver, e.g. `<p class="subtitle">Трекер фишек · v1.2.2</p>`) — there is no automation for it
+(tracked as a known gap in `TODO.md` under "version automation"). Bump this version whenever a
+fix/feature/other user-visible change is about to land on `main`; nothing enforces it today, so
+treat it as a manual step to remember, not something the absence of tooling excuses.
+
 ### Auth
 Single shared app password (`APP_PASSWORD` in config.js) checked client-side, gating access via a
 flag in `localStorage`. This is access-gating for friends, not real authentication — there's no
@@ -101,3 +137,14 @@ direct read/write access to prod tables, migrations, logs, and advisors via MCP 
 `just backup`. Because it's prod, prefer read-only tools (`list_tables`, `execute_sql` for SELECTs,
 `get_logs`, `get_advisors`) for exploration, and treat `apply_migration` as a real prod change —
 confirm with the user first, same as any other prod-affecting operation.
+
+### Documentation upkeep
+`README.md` (onboarding/commands/architecture overview) and this file (deeper implementation
+details for Claude Code) are meant to stay current — there's also a `.githooks/pre-commit` honesty
+check that asks at commit time whether docs were updated, though it doesn't enforce anything. When
+a change alters something a new contributor would need to know to work in this repo — a new
+subsystem, a changed dev workflow, a non-obvious constraint/gotcha, a schema or architecture shift —
+update `README.md` and/or this file (a `docs/` directory can be introduced later if a topic needs
+more space than fits inline). Don't document routine/self-evident changes (a new UI button, a copy
+tweak, a bugfix that doesn't change any documented behavior) — keep these docs high-signal, not a
+changelog.
