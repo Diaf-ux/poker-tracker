@@ -45,7 +45,10 @@
 - [ ] simplify/make a tutorial for game saving
 
 ### Infra
-- [ ] fix `.github/workflows/backup.yml` — daily scheduled backup is currently broken
+- [ ] CI/CD
+    - [ ] fix `.github/workflows/backup.yml` — daily scheduled backup is currently broken
+    - [ ] refactor pipeline to avoid unnecessary runs
+    - [ ] other improvements?
 - [ ] test restoration after data corruption
 - [x] Docs update hook
 - [ ] version automation
@@ -57,6 +60,5 @@
     - `tgSafeCall()` fallback triggering (`js/utils.js`) while genuinely inside real Telegram would mean the Telegram WebApp API itself errored — shouldn't happen, worth knowing if it ever does
     - a payment's `from_name`/`to_name` not matching any player in the current balance set — currently silently ignored (`if (payer)`/`if (payee)` guards in `js/history.js`), could mask a data issue like a name typo (this specific case would likely go away once the `payments` schema fix above lands with a real FK instead of free-text names — listed here since it's silent until then)
 
-0. пофиксить блядский проброс портов
 1. Прогнать апп руками и закоммитить, если всё ок — дифф: .claude/CLAUDE.md, .dockerignore, .githooks/pre-commit, README.md, TODO.md, index.html, js/{blind-timer,game,history,results,setup,utils}.js, justfile, плюс новые docs/known-issue-payment-clamp-residual.md и tests/.
 2. Подумать над кейсом из докса — docs/known-issue-payment-clamp-residual.md: кламп платежей за несколько игр не гарантирует нулевую сумму и может прятать долги из списка даже при выборе всех игр разом (нашёл на реальных прод-данных). Не пофикшено, только предупреждение в UI.
