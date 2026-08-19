@@ -19,6 +19,16 @@ up-anonymized:
     docker exec -i poker-db psql -U poker -d poker < {{backup_dir}}/backup-latest-anonymized.sql
     @echo "Done. Latest anonymized backup restored"
 
+# Runs development environment and restore latest NON-anonymized backup
+up-non-anonymized:
+    @ls {{backup_dir}}/backup-latest.sql > /dev/null 2>&1 || (echo "backup-latest.sql not found. Run 'just backup-anonymize' to fetch it" && exit 1)
+    @docker compose up --build -d
+    @echo "Waiting for postgres to be ready..."
+    @until docker exec poker-db pg_isready -U poker -d poker > /dev/null 2>&1; do sleep 1; done
+    @echo "Restoring {{backup_dir}}/backup-latest.sql..."
+    docker exec -i poker-db psql -U poker -d poker < {{backup_dir}}/backup-latest.sql
+    @echo "Done. Latest NON-anonymized backup restored"
+
 # Remove all the containers and preserve volumes
 down:
     docker compose down

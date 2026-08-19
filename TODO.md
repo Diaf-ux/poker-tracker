@@ -20,11 +20,17 @@
         - [x] block saving a cash game if `Σ final_chips !== Σ start_chips` (was previously only a visual hint, never enforced)
         - [x] `minimizeTransactions()` now detects and surfaces (doesn't silently drop) a leftover balance
     - [x] deeper structural issue found, documented and fixed 2026-08-19: `docs/known-issue-payment-clamp-residual.md` — a payment covering a wider group of games than the current selection could clamp asymmetrically and drop real debts from the displayed list entirely (confirmed reproducible on prod data, even when selecting *all* games); fixed by requiring full `game_ids` containment before applying a payment (unclamped) instead of any-overlap + clamp — no schema change needed, verified exactly against the real anonymized prod backup
-    - [ ] make `payments` schema adequate for prod:
+    - [ ] make `payments` schema adequate for prod (round 3):
         - [ ] `payments.game_ids` is a comma-delimited text column (`,3,7,9,`) instead of a join table — no FK, no referential integrity, matched via `like.*,id,*`
         - [ ] `payments` isn't linked to `game_players`/`games` at all beyond that text blob — a payment can't be traced back to a specific settlement cleanly
         - [ ] `games.date_str` is free text, not a `date`/`timestamptz` column
         - [ ] and possibly others...
+        - [ ] idea captured (not scheduled): migrate to a `payment_game_shares` per-game ledger for
+          fully flexible, exact settlement of any game combination — see
+          `docs/payments-logic-migration.md`
+        - [ ] remove the temporary pre-round-3 settle gates (date cutoff, 3-game cap, 300₽
+          threshold) added 2026-08-20 ahead of prod deploy once this ships — see
+          `docs/temporary-payment-restrictions.md` for the exact removal checklist
 - [x] UI init:
     - [x] Claude, docs and doc `.githook`
     - [x] Supabase MCP

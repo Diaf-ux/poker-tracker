@@ -3,6 +3,40 @@ var allGamesCache = null;
 var paymentsCache = null;
 var gameGroupsCache = null;
 
+// ===== TEMPORARY SETTLE GATES (pre-deploy hardening, round 2.5) =====
+// Extra, purely UI-layer restrictions on *paying* (never on viewing/selecting/calculating)
+// while the containment-based fix (computeRemainingDebt()) ships to prod ahead of the real
+// per-game exact ledger (docs/payments-logic-migration.md, round 3). Full rationale, exact
+// removal checklist: docs/temporary-payment-restrictions.md. Delete this whole block (both
+// constants+helper here and the two call sites in _doUpdateDebts()/settleDebt()) once round 3
+// ships - nothing else in this file depends on it.
+var LEGACY_PAYMENT_CUTOFF = new Date(2026, 6, 1); // 01.07.2026 (JS months are 0-indexed)
+var LEGACY_MAX_SELECTED_GAMES = 3;
+var LEGACY_MAX_SETTLE_AMOUNT = 300;
+
+function parseGameDateStr(dateStr) {
+    var m = /^(\d{2})\.(\d{2})\.(\d{4})/.exec(dateStr || '');
+    if (!m) return null;
+    return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+}
+
+function getTemporarySettleBlockReasons(selectedIds, txs) {
+    var reasons = [];
+    var hasLegacyGame = selectedIds.some(function (id) {
+        var g = allGamesCache && allGamesCache.find(function (gg) { return String(gg.id) === String(id); });
+        var d = g && parseGameDateStr(g.date_str);
+        return !d || d < LEGACY_PAYMENT_CUTOFF; // fail-closed: unparseable date = blocked
+    });
+    if (hasLegacyGame) reasons.push('есть игра до 01.07.2026');
+    if (selectedIds.length > LEGACY_MAX_SELECTED_GAMES) {
+        reasons.push('выбрано больше ' + LEGACY_MAX_SELECTED_GAMES + ' игр');
+    }
+    var hasLargeAmount = (txs || []).some(function (t) { return t.amount > LEGACY_MAX_SETTLE_AMOUNT; });
+    if (hasLargeAmount) reasons.push('сумма больше ' + LEGACY_MAX_SETTLE_AMOUNT + ' р');
+    return reasons;
+}
+// ===== END TEMPORARY SETTLE GATES =====
+
 function switchTab(tabId, el) {
     if (tabId !== 'tab-history') { activePlayerFilter = null; allGamesCache = null; paymentsCache = null; gameGroupsCache = null; }
     document.querySelectorAll('.tab-content').forEach(function (t) { t.style.display = 'none'; });
@@ -392,8 +426,13 @@ function _doUpdateDebts() {
         // skipped payment's distorted balance can shift the pairing/amount of ANY displayed
         // transaction, not just ones naming the skipped payment's players (confirmed against
         // real prod data - see docs/payments-logic-migration.md's round-2 recap).
-        var blockSettle = skippedPayments.length > 0;
-        var html = skippedNote + '<div style="color:var(--gold);font-weight:700;margin-bottom:10px;">' + titleLabel + '</div>';
+        var legacyBlockReasons = getTemporarySettleBlockReasons(selected, txs);
+        var blockSettle = skippedPayments.length > 0 || legacyBlockReasons.length > 0;
+        var legacyNote = legacyBlockReasons.length
+            ? '<div style="color:var(--text-muted);font-size:0.8em;margin-bottom:8px;">' +
+              '⏳ Оплата временно недоступна: ' + escHtml(legacyBlockReasons.join(', ')) + '.</div>'
+            : '';
+        var html = skippedNote + legacyNote + '<div style="color:var(--gold);font-weight:700;margin-bottom:10px;">' + titleLabel + '</div>';
         if (!displayTxs.length) {
             html += '<div style="color:var(--green-light);">✅ Все долги оплачены!</div>';
         } else {
@@ -433,6 +472,13 @@ function _doUpdateDebts() {
 function settleDebt(fromName, toName, amount) {
     var selectedIds = Array.from(document.querySelectorAll('.game-checkbox:checked'))
         .map(function (cb) { return cb.dataset.id; });
+    // TEMPORARY SETTLE GATE (see getTemporarySettleBlockReasons() near the top of this file) -
+    // defensive, the UI already disables the button; guards against inconsistent UI state.
+    // Remove alongside the rest of that block once round 3 ships.
+    if (getTemporarySettleBlockReasons(selectedIds, [{ amount: amount }]).length) {
+        showAlert('Оплата временно недоступна для этой выборки.');
+        return;
+    }
     var gameIdsStr = ',' + selectedIds.join(',') + ',';
     var confirmMsg = fromName + ' оплатил ' + Number(amount).toFixed(2) + ' р → ' + toName + '?';
     function doSettle() {
