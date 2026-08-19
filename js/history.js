@@ -32,7 +32,7 @@ function getTemporarySettleBlockReasons(selectedIds, txs) {
         reasons.push('выбрано больше ' + LEGACY_MAX_SELECTED_GAMES + ' игр');
     }
     var hasLargeAmount = (txs || []).some(function (t) { return t.amount > LEGACY_MAX_SETTLE_AMOUNT; });
-    if (hasLargeAmount) reasons.push('сумма больше ' + LEGACY_MAX_SETTLE_AMOUNT + ' р');
+    if (hasLargeAmount) reasons.push('сумма одного из платежей больше ' + LEGACY_MAX_SETTLE_AMOUNT + ' р');
     return reasons;
 }
 // ===== END TEMPORARY SETTLE GATES =====
