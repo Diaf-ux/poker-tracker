@@ -371,7 +371,8 @@ function _doUpdateDebts() {
             : 'Итоговые долги за ' + selected.length + ' игр:';
         // A payment only ever counts once its full game_ids set is part of the current
         // selection (see computeRemainingDebt()) - point at exactly which games are still
-        // missing instead of showing a vague/generic warning.
+        // missing instead of showing a vague/generic warning. Text is always-visible body
+        // copy, not a title tooltip - Telegram's mobile WebView has no hover state.
         var skippedNote = '';
         if (displaySkipped.length) {
             var missingIds = [];
@@ -383,28 +384,39 @@ function _doUpdateDebts() {
                 return escHtml(g ? g.name : ('#' + gid));
             }).join(', ');
             skippedNote = '<div style="color:var(--text-muted);font-size:0.8em;margin-bottom:8px;">' +
-                '🔗 Не учтено платежей: ' + displaySkipped.length + ' — не выбраны связанные игры: <b>' + missingNames + '</b>. ' +
+                '🔗 Без игр <b>' + missingNames + '</b> расчёт неполный — оплата долгов ниже заблокирована. ' +
                 '<button class="settle-btn" onclick="addGamesToSelection([' +
                 missingIds.map(function (id) { return '\'' + id + '\''; }).join(',') + '])">Добавить игры</button></div>';
         }
+        // Blocked whole-list, not per-pair: minimizeTransactions() is a greedy matcher, so a
+        // skipped payment's distorted balance can shift the pairing/amount of ANY displayed
+        // transaction, not just ones naming the skipped payment's players (confirmed against
+        // real prod data - see docs/payments-logic-migration.md's round-2 recap).
+        var blockSettle = skippedPayments.length > 0;
         var html = skippedNote + '<div style="color:var(--gold);font-weight:700;margin-bottom:10px;">' + titleLabel + '</div>';
         if (!displayTxs.length) {
             html += '<div style="color:var(--green-light);">✅ Все долги оплачены!</div>';
         } else {
             html += '<ul class="transactions" style="margin:0;">' +
                 displayTxs.map(function (t) {
+                    var btn = blockSettle
+                        ? '<button class="settle-btn" disabled style="opacity:0.4;cursor:not-allowed;">✓ Оплатил</button>'
+                        : '<button class="settle-btn" onclick="settleDebt(\'' + escHtml(t.from) + '\',\'' + escHtml(t.to) + '\',' + t.amount.toFixed(2) + ')">✓ Оплатил</button>';
                     return '<li>' +
                         '<span><b>' + escHtml(t.from) + '</b></span>' +
                         '<span class="arrow">→</span>' +
                         '<span><b>' + escHtml(t.to) + '</b></span>' +
                         '<span class="amount">' + t.amount.toFixed(2) + ' р</span>' +
-                        '<button class="settle-btn" onclick="settleDebt(\'' + escHtml(t.from) + '\',\'' + escHtml(t.to) + '\',' + t.amount.toFixed(2) + ')">✓ Оплатил</button>' +
+                        btn +
                         '</li>';
                 }).join('') + '</ul>';
         }
         if (displayPaid.length) {
-            html += '<div style="color:var(--text-muted);font-weight:700;margin:14px 0 10px;">Уже оплачено:</div>' +
-                '<ul class="transactions" style="margin:0;">' +
+            // Collapsed by default (can get long - real games can have 8+ paid entries at
+            // once) - header stays visible with a count, list only renders on click.
+            html += '<div class="paid-toggle" style="cursor:pointer;user-select:none;color:var(--text-muted);font-weight:700;margin:14px 0 10px;" onclick="togglePaidList(this)">' +
+                '<span class="paid-toggle-arrow">▸</span> Уже оплачено (' + displayPaid.length + ')</div>' +
+                '<ul class="transactions" style="margin:0;display:none;">' +
                 displayPaid.map(function (t) {
                     return '<li class="settled" style="flex-wrap:wrap;">' +
                         '<span><b>' + escHtml(t.from) + '</b></span>' +
@@ -510,6 +522,16 @@ function selectGameGroup(gameId) {
     var group = gameGroupsCache && gameGroupsCache[String(gameId)];
     if (!group || group.length < 2) return;
     addGamesToSelection(group);
+}
+
+// Toggles the "Уже оплачено" list (collapsed by default) - bound to the header's onclick.
+function togglePaidList(headerEl) {
+    var list = headerEl.nextElementSibling;
+    if (!list) return;
+    var isHidden = list.style.display === 'none';
+    list.style.display = isHidden ? '' : 'none';
+    var arrow = headerEl.querySelector('.paid-toggle-arrow');
+    if (arrow) arrow.textContent = isHidden ? '▾' : '▸';
 }
 
 function selectAllOpened() {

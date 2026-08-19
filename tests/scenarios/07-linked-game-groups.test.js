@@ -89,9 +89,12 @@ async function run() {
         }));
 
         results.push(await it('once the full group is selected, both payments are fully counted (no skipped-payment note)', async () => {
-            const txt = await page.evaluate(() => document.getElementById('debts-panel').innerText);
-            assertTrue(!txt.includes('Не учтено платежей'), 'both linked payments are now fully contained and must not be skipped');
-            assertTrue(txt.includes('Уже оплачено') && txt.includes('10.00') && txt.includes('8.00'), 'expected both payments (10.00, 8.00) to show as paid');
+            let txt = await page.evaluate(() => document.getElementById('debts-panel').innerText);
+            assertTrue(!txt.includes('расчёт неполный'), 'both linked payments are now fully contained and must not be skipped');
+            assertTrue(txt.includes('Уже оплачено (2)'), 'expected paid header with count 2');
+            await page.evaluate(() => document.querySelector('#debts-panel .paid-toggle').click());
+            txt = await page.evaluate(() => document.getElementById('debts-panel').innerText);
+            assertTrue(txt.includes('10.00') && txt.includes('8.00'), 'expected both payments (10.00, 8.00) visible after expanding the paid list');
         }));
     } finally {
         await cleanupGames(gameIds).catch(() => {});

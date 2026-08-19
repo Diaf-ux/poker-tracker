@@ -70,6 +70,19 @@ async function hasSettledClass(page) {
     }
 }
 
+// The "Уже оплачено" list is collapsed (display:none) by default - .innerText excludes
+// hidden-element text, so any assertion checking paid amounts must expand it first.
+async function expandPaidList(page) {
+    await page.evaluate(() => {
+        const header = document.querySelector('#debts-panel .paid-toggle');
+        if (header) header.click();
+    });
+}
+
+async function panelText(page) {
+    return page.evaluate(() => document.getElementById('debts-panel').innerText);
+}
+
 async function run() {
     const results = [];
     const gameIds = [];
@@ -96,9 +109,13 @@ async function run() {
 
         results.push(await it('settling the combined debt in one payment marks it paid (fully-contained payment, unclamped)', async () => {
             await settleFirst(page);
-            const txt = await page.evaluate(() => document.getElementById('debts-panel').innerText);
+            var txt = await panelText(page);
             assertTrue(txt.includes('Все долги оплачены'), 'expected fully-paid message');
-            assertTrue(txt.includes('Уже оплачено') && txt.includes('80.00'), 'expected paid section with 80.00');
+            assertTrue(txt.includes('Уже оплачено (1)'), 'expected paid header with count');
+            assertTrue(!txt.includes('80.00'), '80.00 must not be visible while the paid list is collapsed');
+            await expandPaidList(page);
+            txt = await panelText(page);
+            assertTrue(txt.includes('80.00'), 'expected the 80.00 amount visible after expanding the paid list');
             assertTrue(await hasSettledClass(page), 'paid entry must render with the .settled (struck-through) class');
             // settling a >1-game selection kicks off an async auto-close check
             // (js/history.js settleDebt()) that re-renders history cards shortly
@@ -114,9 +131,18 @@ async function run() {
             // must show, never a wrong/flipped number, and never silently as "paid".
             assertTrue(!/QA_D_Bob[\s\S]*?→[\s\S]*?QA_D_Alice/.test(txt), 'balance must not flip direction for a narrower selection');
             assertTrue(txt.includes('QA_D_Alice') && txt.includes('QA_D_Bob') && txt.includes('50.00'), 'expected the raw, unpaid game A debt (50.00)');
-            assertTrue(txt.includes('Не учтено платежей'), 'expected the skipped-payment note');
+            assertTrue(txt.includes('расчёт неполный') && txt.includes('заблокирована'), 'expected the skipped-payment note explaining why settling is blocked');
             assertTrue(!txt.includes('Проверьте платежи вручную'), 'the old generic residual warning must be gone');
             assertTrue(!txt.includes('Уже оплачено'), 'the wider payment must not appear as paid in this narrower view');
+            const disabledCount = await page.evaluate(() =>
+                document.querySelectorAll('#debts-panel .transactions .settle-btn[disabled]').length);
+            assertTrue(disabledCount > 0, 'the "✓ Оплатил" button(s) must be disabled while a payment is skipped');
+            const addGamesEnabled = await page.evaluate(() => {
+                const btn = Array.from(document.querySelectorAll('#debts-panel .settle-btn'))
+                    .find((b) => b.textContent.includes('Добавить игры'));
+                return !!btn && !btn.disabled;
+            });
+            assertTrue(addGamesEnabled, '"Добавить игры" must stay enabled even while settling is blocked');
         }));
 
         results.push(await it('"Добавить игры" adds the missing game back and fully resolves the previously-skipped payment', async () => {
@@ -168,26 +194,35 @@ async function run() {
 
         results.push(await it('a subset-covering payment correctly reduces a wider combined selection', async () => {
             await checkGames(page, [gC, gD]);
-            const txt = await calcDebts(page);
+            let txt = await calcDebts(page);
             assertTrue(txt.includes('15.00'), 'expected 15.00 remaining (35 combined - 20 already paid)');
-            assertTrue(txt.includes('Уже оплачено') && txt.includes('20.00'), 'expected paid section with 20.00');
-            assertTrue(!txt.includes('Не учтено платежей'), 'no skipped-payment note expected here - the payment is fully contained');
+            assertTrue(txt.includes('Уже оплачено (1)'), 'expected paid header with count');
+            assertTrue(!txt.includes('расчёт неполный'), 'no skipped-payment note expected here - the payment is fully contained');
+            await expandPaidList(page);
+            txt = await panelText(page);
+            assertTrue(txt.includes('20.00'), 'expected 20.00 visible after expanding the paid list');
         }));
 
         results.push(await it('a genuine partial settlement leaves the untouched player\'s real debt showing exactly, not zeroed/hidden', async () => {
             await checkGames(page, [gE, gF]);
-            const txt = await calcDebts(page);
+            let txt = await calcDebts(page);
             assertTrue(txt.includes('QA_D3_Carol') && txt.includes('QA_D3_Bob') && txt.includes('20.00'), 'expected Carol\'s untouched 20.00 debt to Bob');
             const owingSection = txt.split('Уже оплачено')[0];
             assertTrue(!owingSection.includes('QA_D3_Alice'), 'Alice\'s debt was fully paid off and must not appear in the still-owing section');
-            assertTrue(txt.includes('Уже оплачено') && txt.includes('30.00'), 'expected the 30.00 payment to show as paid');
+            assertTrue(txt.includes('Уже оплачено (1)'), 'expected paid header with count');
+            await expandPaidList(page);
+            txt = await panelText(page);
+            assertTrue(txt.includes('30.00'), 'expected the 30.00 payment visible after expanding the paid list');
         }));
 
         results.push(await it('a single-game payment exactly matching a single-game selection settles cleanly', async () => {
             await checkGames(page, [gG]);
-            const txt = await calcDebts(page);
+            let txt = await calcDebts(page);
             assertTrue(txt.includes('Все долги оплачены'), 'expected fully-paid for the self-contained single-game payment');
-            assertTrue(txt.includes('Уже оплачено') && txt.includes('10.00'), 'expected paid section with 10.00');
+            assertTrue(txt.includes('Уже оплачено (1)'), 'expected paid header with count');
+            await expandPaidList(page);
+            txt = await panelText(page);
+            assertTrue(txt.includes('10.00'), 'expected 10.00 visible after expanding the paid list');
             assertTrue(await hasSettledClass(page), 'paid entry must render with the .settled (struck-through) class');
         }));
     } finally {
