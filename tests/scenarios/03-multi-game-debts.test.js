@@ -70,9 +70,29 @@ async function hasSettledClass(page) {
     }
 }
 
+// Single-game selections that zero out trigger _doUpdateDebts()'s own auto-close branch
+// (js/history.js), which PATCHes is_closed then calls renderHistoryCards() -> _doUpdateDebts()
+// again, asynchronously replacing #debts-panel's DOM a second time shortly after the first
+// render calcDebts() already waited for. Poll until two consecutive reads match (and aren't
+// the loading state) before interacting further, so a click/read doesn't land on a
+// soon-to-be-replaced element or a transient "Считаем" blip.
+async function waitForStablePanel(page) {
+    let prev = null;
+    for (let i = 0; i < 12; i++) {
+        const cur = await page.evaluate(() => {
+            const p = document.getElementById('debts-panel');
+            return p ? p.innerText : '';
+        });
+        if (cur === prev && !cur.includes('Считаем')) return;
+        prev = cur;
+        await new Promise((r) => setTimeout(r, 150));
+    }
+}
+
 // The "Уже оплачено" list is collapsed (display:none) by default - .innerText excludes
 // hidden-element text, so any assertion checking paid amounts must expand it first.
 async function expandPaidList(page) {
+    await waitForStablePanel(page);
     await page.evaluate(() => {
         const header = document.querySelector('#debts-panel .paid-toggle');
         if (header) header.click();
