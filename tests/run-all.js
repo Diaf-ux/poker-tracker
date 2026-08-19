@@ -10,6 +10,7 @@ const scenarios = [
     './scenarios/04-leaderboard-stats.test.js',
     './scenarios/05-chip-conservation-validation.test.js',
     './scenarios/06-auto-close-on-settle.test.js',
+    './scenarios/07-linked-game-groups.test.js',
 ];
 
 (async () => {

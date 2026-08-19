@@ -1,10 +1,9 @@
 # Known issue: multi-game payment clamping can leave a residual / drop debts from view
 
-Status: not fixed, not blocking. Documented 2026-08-04 while investigating the
-`- [ ] recheck transactions validation` TODO item. `js/history.js`'s `_doUpdateDebts()`
-now surfaces this as a small "⚠️ Небольшое расхождение в расчётах" note
-(`minimizeTransactions()`'s `_residual` property) whenever it happens, but the underlying
-mechanism isn't fixed — this doc is for deciding what (if anything) to do about it later.
+Status: **fixed 2026-08-19** — see "Resolution" at the end of this doc. Originally documented
+2026-08-04 while investigating the `- [ ] recheck transactions validation` TODO item; the sections
+below (background, confirmed prod-data cases, root cause) are kept as historical record of the
+analysis that led to the fix.
 
 ## Background
 
@@ -69,24 +68,24 @@ This is the same underlying gap already tracked in `TODO.md`:
   solve as a linear system / min-cost-flow across all known payments and balances for
   the selected scope, instead of greedily applying payments one at a time).
 
-## What ships now
+## What shipped originally (2026-08-04, superseded by the 2026-08-19 fix below)
 
 Just the warning note (`_residual` on `minimizeTransactions()`'s return, surfaced in
 `_doUpdateDebts()`'s panel) so a discrepancy is visible instead of silently wrong — no
 attempt to actually reconcile it. `console.warn` isn't useful in prod (runs inside the
-Telegram Mini App WebView, nobody's watching devtools) — see the new `Infra` TODO item
-about adding real alerting/telemetry, which lists this as one motivating case.
+Telegram Mini App WebView, nobody's watching devtools) — see the `Infra` TODO item about
+adding real alerting/telemetry, which lists this as one motivating case. This generic warning
+was removed once the actual fix (see "Resolution" below) shipped, since it can no longer
+legitimately fire.
 
 ---
 
 # Известная проблема: кламп платежей за несколько игр может давать остаток / прятать долги
 
-Статус: не пофикшено, не блокирует. Задокументировано 2026-08-04 в ходе разбора задачи
-`- [ ] recheck transactions validation`. `_doUpdateDebts()` в `js/history.js` теперь
-показывает эту ситуацию как небольшую заметку "⚠️ Небольшое расхождение в расчётах"
-(свойство `_residual` у результата `minimizeTransactions()`), но сам механизм не
-исправлен — этот докс для того, чтобы потом решить, что с этим делать (если вообще
-что-то делать).
+Статус: **пофикшено 2026-08-19** — см. раздел "Решение" в конце документа. Изначально
+задокументировано 2026-08-04 в ходе разбора задачи `- [ ] recheck transactions validation`;
+разделы ниже (контекст, подтверждённые кейсы на прод-данных, первопричина) сохранены как
+историческая запись анализа, который привёл к фиксу.
 
 ## Контекст
 
@@ -156,15 +155,71 @@ comma-delimited текстовое поле без реальной связи �
   (например, решать как линейную систему / min-cost-flow по всем известным платежам и
   балансам в рамках выбранной области, вместо жадного применения платежей по одному).
 
-## Что едет в релиз сейчас
+## Что уехало в релиз изначально (2026-08-04, заменено фиксом от 2026-08-19 ниже)
 
 Только предупреждающая заметка (`_residual` у результата `minimizeTransactions()`,
 показывается в панели `_doUpdateDebts()`), чтобы расхождение было видно, а не тихо
 неправильным — без попытки реально реконсилировать. `console.warn` бесполезен в проде
 (выполняется внутри WebView Telegram Mini App, там никто не смотрит devtools) — см.
-новый пункт `Infra` в TODO.md про добавление настоящего алертинга/телеметрии, где этот
-случай указан как один из мотивирующих.
+пункт `Infra` в TODO.md про добавление настоящего алертинга/телеметрии, где этот
+случай указан как один из мотивирующих. Эта общая заметка была убрана, когда вышел
+настоящий фикс (см. «Решение» ниже) — она больше не может законно сработать.
 
-# Possible solutions
-- Пересчитать логику расчета транзакций для множественного, чтоб учитывало игры где может возникнуть ситуация когда игроку некому оплатить долг по одной игре?
-- Забить фиг и отменить завершенные по payment.game_ids с предупреждением в поломанных играх
+# Resolution (2026-08-19)
+
+Verified against real production data (via the Supabase MCP, read-only) before implementing: none
+of the payment-linked game groups that motivated this doc were actually fully settled — each has
+genuine, non-clamp-artifact unpaid debt (e.g. ~300₽ still owed across games 27+28+29, ~258₽
+combined across games 51+52+53). This ruled out "just mark payment-referenced games closed" — it
+would have hidden real money owed between friends. The `payments` rows themselves were never
+corrupted; only the clamp-based *reading* of them was broken.
+
+The actual fix, in `js/history.js`'s `computeRemainingDebt()`: a payment is only ever applied if
+its **entire** `game_ids` set is a subset of the currently selected games (`.every()`), never merely
+overlapping (the old `.some()` check) — and once that's guaranteed, the full amount is applied
+**unclamped** (no `Math.min`/`Math.max` capping). This is always safe: every game's own `diff_rub`
+sums to zero (enforced at save time), and an unclamped transfer conserves that sum, so a
+fully-contained payment can never flip a balance's sign or lose real debt. A payment that only
+partially overlaps the current selection is skipped entirely (never partially/wrongly applied) and
+surfaced via a specific note naming exactly which games are missing, with a one-click "Добавить
+игры" button to add them. History cards for any game touched by a multi-game payment also show a
+"🔗 Общий платёж с играми: …" hint with a one-click "Выбрать группу" button, so a user never loses
+the ability to look at a single game on its own while still having an easy, honest way to see the
+complete picture.
+
+This required **no schema change and no data migration** — the same logic fix handles both the
+existing (legacy) payments and guarantees no clamp/residual can occur for any future payment either.
+Verified exactly (to the cent) against the real anonymized production backup via `just
+up-anonymized` for all four affected game groups; see `tests/scenarios/03-multi-game-debts.test.js`,
+`tests/scenarios/06-auto-close-on-settle.test.js` and `tests/scenarios/07-linked-game-groups.test.js`
+for the automated regression coverage.
+
+# Решение (2026-08-19)
+
+Перед реализацией фикса были проверены реальные прод-данные (через Supabase MCP, read-only): ни
+одна из групп игр, связанных общим платежом и упомянутых в этом докe, на самом деле не была
+полностью погашена — в каждой есть настоящий, не являющийся артефактом клампа непогашенный долг
+(например, ~300₽ по играм 27+28+29, ~258₽ суммарно по играм 51+52+53). Это исключило вариант
+«просто закрыть игры, упомянутые в платежах» — так можно было бы спрятать реальные деньги, которые
+друзья ещё должны друг другу. Сами записи в `payments` никогда не были испорчены — была сломана
+только логика их *чтения*.
+
+Настоящий фикс, в `computeRemainingDebt()` (`js/history.js`): платёж применяется только если его
+**весь** `game_ids` целиком входит в текущую выборку игр (`.every()`), а не просто пересекается с
+ней (старая проверка `.some()`) — и как только это гарантировано, вся сумма применяется **без
+клампа** (без `Math.min`/`Math.max`). Это всегда безопасно: сумма `diff_rub` по каждой отдельной
+игре равна нулю (это гарантируется при сохранении игры), а перевод без клампа сохраняет эту сумму —
+значит, полностью укладывающийся в выборку платёж никогда не может развернуть баланс не в ту сторону
+или потерять реальный долг. Платёж, который лишь частично пересекается с текущей выборкой, вообще не
+применяется (никогда не применяется частично/неверно) и показывается отдельной заметкой с точным
+списком недостающих игр и кнопкой «Добавить игры» в один клик. На карточках игр, затронутых
+групповым платежом, также показывается подсказка «🔗 Общий платёж с играми: …» с кнопкой «Выбрать
+группу» — так что пользователь никогда не теряет возможность посмотреть одну игру отдельно, но при
+этом легко может увидеть честную полную картину.
+
+Это не потребовало **никакой миграции схемы и никакой миграции данных** — одна и та же логика
+одновременно чинит уже существующие (старые) платежи и гарантирует, что кламп/остаток больше не
+может возникнуть ни для одного будущего платежа. Сверено с точностью до копейки с реальным
+анонимизированным прод-бэкапом через `just up-anonymized` по всем четырём затронутым группам игр;
+автоматизированное регрессионное покрытие — в `tests/scenarios/03-multi-game-debts.test.js`,
+`tests/scenarios/06-auto-close-on-settle.test.js` и `tests/scenarios/07-linked-game-groups.test.js`.

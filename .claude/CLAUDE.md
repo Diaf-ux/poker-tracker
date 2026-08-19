@@ -18,7 +18,7 @@ against its bundled packages via `NODE_PATH`, so it doesn't need its own `packag
 Development is driven by `just` (see `justfile`) wrapping Docker Compose:
 
 - `just up` — build and start the dev stack (Postgres + PostgREST + nginx serving the static app) at `localhost:3000`, in the background.
-- `just up-anonymized` — same, but also restores `backup/backup-latest-anonymized.sql` into the fresh dev DB (requires running `just backup-anonymize` at least once first).
+- `just up-anonymized` — same, but also restores `backup/backup-latest-anonymized.sql` into the fresh dev DB (requires running `just backup-anonymize` at least once first). This is the way to validate a change to payments/history/debt-calculation logic against realistic data shapes before it ships — real game/payment structure and amounts are preserved, only player/game names are pseudonymized, and game ids are stable, so findings from prod (e.g. via the Supabase MCP) can be cross-referenced by id.
 - `just down` — stop containers, keep the Postgres volume.
 - `just down-flush` — stop containers and delete the Postgres volume (fully resets dev data).
 - `just up-restart` — `down-flush` + `up`.

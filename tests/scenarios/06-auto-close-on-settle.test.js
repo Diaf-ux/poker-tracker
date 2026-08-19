@@ -3,7 +3,7 @@
 // just-recorded combined payment, never from merely viewing an old
 // combination that happens to net to zero on its own.
 const { launchPage, gotoTab } = require('../helpers/env');
-const { createGame, createPlayer, cleanupGames } = require('../helpers/seed');
+const { createGame, createPlayer, createPayment, cleanupGames, del } = require('../helpers/seed');
 const { assertEqual, it, tally } = require('../helpers/assert');
 
 async function checkGames(page, ids) {
@@ -47,6 +47,18 @@ async function badgeFor(page, gameId) {
     }, gameId);
 }
 
+async function clickGroupButton(page, gameId) {
+    await page.evaluate((id) => {
+        const card = Array.from(document.querySelectorAll('.history-card')).find((c) => {
+            const cb = c.querySelector('.game-checkbox');
+            return cb && cb.dataset.id === String(id);
+        });
+        const btn = card && Array.from(card.querySelectorAll('.settle-btn')).find((b) => b.textContent.includes('Выбрать группу'));
+        if (!btn) throw new Error('group-select button not found for game ' + id);
+        btn.click();
+    }, gameId);
+}
+
 async function run() {
     const results = [];
     const gameIds = [];
@@ -63,6 +75,20 @@ async function run() {
         await createPlayer(g3, 'QA_AC_Alice', -15);
         await createPlayer(g3, 'QA_AC_Bob', 15);
         gameIds.push(g1, g2, g3);
+
+        // g4/g5: linked by a pre-existing payment covering both, which only
+        // partially settles their combined debt - used to verify that expanding
+        // a single-game selection to its full linked group via "Выбрать группу"
+        // and then settling the remainder closes every game in the group, not
+        // just the one originally checked.
+        const g4 = await createGame('QA_close_link_a_' + Date.now());
+        await createPlayer(g4, 'QA_AC2_Alice', -10);
+        await createPlayer(g4, 'QA_AC2_Bob', 10);
+        const g5 = await createGame('QA_close_link_b_' + Date.now());
+        await createPlayer(g5, 'QA_AC2_Alice', -5);
+        await createPlayer(g5, 'QA_AC2_Bob', 5);
+        gameIds.push(g4, g5);
+        await createPayment('QA_AC2_Alice', 'QA_AC2_Bob', 10, [g4, g5]);
 
         await gotoTab(page, 2);
         await page.waitForSelector('.history-card');
@@ -90,8 +116,23 @@ async function run() {
             assertEqual(await badgeFor(page, g2), 'Закрыта', 'g2 should auto-close');
             assertEqual(await badgeFor(page, g3), 'Закрыта', 'g3 should auto-close');
         }));
+
+        results.push(await it('expanding to a full linked group via "Выбрать группу" then settling closes every game in the group', async () => {
+            await checkGames(page, [g4]);
+            await calcDebts(page);
+            await clickGroupButton(page, g4);
+            await page.waitForFunction(() => {
+                const p = document.getElementById('debts-panel');
+                return p && p.innerText.trim().length > 0 && !p.innerText.includes('Считаем');
+            });
+            await settleFirst(page);
+            await new Promise((r) => setTimeout(r, 800));
+            assertEqual(await badgeFor(page, g4), 'Закрыта', 'g4 should auto-close');
+            assertEqual(await badgeFor(page, g5), 'Закрыта', 'g5 should auto-close (not just the originally-checked g4)');
+        }));
     } finally {
         await cleanupGames(gameIds).catch(() => {});
+        await del('payments?from_name=like.QA_AC2_*').catch(() => {});
         await browser.close();
     }
 
