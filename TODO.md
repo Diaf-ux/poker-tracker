@@ -65,4 +65,4 @@
     - `sbFetch()` exhausted retries/timeouts — currently just pops a one-off `alert()`/`tg.showAlert()` dialog for whoever happens to be using the app at that moment; nothing is captured or persisted anywhere for a developer to see later
     - `tgSafeCall()` fallback triggering (`js/utils.js`) while genuinely inside real Telegram would mean the Telegram WebApp API itself errored — shouldn't happen, worth knowing if it ever does
     - a payment's `from_name`/`to_name` not matching any player in the current balance set — currently silently ignored (`if (payer)`/`if (payee)` guards in `js/history.js`), could mask a data issue like a name typo (this specific case would likely go away once the `payments` schema fix above lands with a real FK instead of free-text names — listed here since it's silent until then)
-
+- [ ] Fix `TimeoutError: The read operation timed out` on `just backup`
