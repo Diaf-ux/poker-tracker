@@ -7,6 +7,7 @@
     - [x] add button "Выбрать все открытые игры"
     - [x] EXTRA: add button "Отменить выбор"
 - [x] Dockerize to make a dev env
+- [ ] github verified commit and related things
 - [ ] [Iteration II] Ensure correct transactions calculations and confirmation (Joja case)
     - [x] anonymize original pgdump and reproduce
         - [x] find a way do make a dump
