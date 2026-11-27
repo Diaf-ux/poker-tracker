@@ -244,6 +244,23 @@ input:focus {
     padding-right: 42px;
 }
 
+.name-input-wrap select {
+    width: 100%;
+    background: #0f2d1a;
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 11px 42px 11px 14px;
+    font-size: 16px;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%23f0c040' stroke-width='2' stroke-linecap='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 50px center;
+}
+
 .remove-btn {
     position: absolute;
     right: 0;

@@ -67,6 +67,8 @@ function goBackSetup() {
 function newGame() {
     if (bt.tickId) { clearInterval(bt.tickId); bt.tickId = null; bt.running = false; }
     showPage('page-setup');
+    resetPlayerRows();
+    loadPlayersForDropdown();
     document.querySelectorAll('.tab-content').forEach(function (t) { t.style.display = 'none'; });
     document.querySelectorAll('.nav-tab').forEach(function (t) { t.classList.remove('active'); });
     document.getElementById('tab-setup').style.display = 'block';

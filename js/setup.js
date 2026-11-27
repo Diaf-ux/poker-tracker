@@ -2,6 +2,8 @@ var state = {
     players: [], chipsPerRub: 10, gameName: '',
     mode: 'cash', buyIn: 0, payoutScheme: 'winner_all', place2Prize: 0
 };
+var knownPlayersCache = null; // null = список из БД ещё не загружен
+var playersLoadFailed = false;
 
 function checkPassword() {
     var val = document.getElementById('auth-input').value;
@@ -30,37 +32,134 @@ function initApp() {
 
 function initSetup() {
     if (document.getElementById('names-grid').children.length === 0) {
-        var saved = localStorage.getItem(PLAYERS_KEY);
-        var names = saved ? JSON.parse(saved) : ['', '', ''];
-        names.forEach(function (name) { addPlayerInput(name); });
+        addPlayerInput();
+        addPlayerInput();
+        addPlayerInput();
     }
+    loadPlayersForDropdown();
 }
 
-function addPlayerInput(name) {
-    name = name || '';
+// Загружает известных игроков из БД (уникальные имена из game_players),
+// сортирует по алфавиту и заполняет все дропбоксы. При ошибке — превращает
+// дропбоксы в обычные текстовые поля, чтобы игру можно было начать офлайн.
+function loadPlayersForDropdown() {
+    sbFetch('game_players?select=name').then(function (rows) {
+        var names = {};
+        (rows || []).forEach(function (r) { if (r.name) names[r.name] = 1; });
+        knownPlayersCache = Object.keys(names).sort(function (a, b) {
+            return a.localeCompare(b, 'ru');
+        });
+        playersLoadFailed = false;
+        renderPlayerSelectOptions();
+    }).catch(function () {
+        playersLoadFailed = true;
+        Array.prototype.forEach.call(
+            document.querySelectorAll('#names-grid .player-select'),
+            function (sel) {
+                var wrap = sel.closest('.name-input-wrap');
+                var inp = document.createElement('input');
+                inp.type = 'text';
+                inp.className = 'player-input';
+                inp.placeholder = 'Имя игрока';
+                inp.value = sel.value === '__new__' ? '' : sel.value;
+                inp.oninput = renderPlayerSelectOptions;
+                wrap.insertBefore(inp, sel);
+                sel.remove();
+            });
+    });
+}
+
+// Имена, выбранные в других строках (кроме exceptWrap) — их надо скрывать.
+function selectedPlayerNames(exceptWrap) {
+    var names = [];
+    Array.prototype.forEach.call(
+        document.querySelectorAll('#names-grid .name-input-wrap'),
+        function (wrap) {
+            if (wrap === exceptWrap) return;
+            var sel = wrap.querySelector('.player-select');
+            var inp = wrap.querySelector('.player-input');
+            var v = sel ? sel.value : (inp ? inp.value.trim() : '');
+            if (v && v !== '__new__') names.push(v);
+        });
+    return names;
+}
+
+function renderPlayerSelectOptions() {
+    var taken = selectedPlayerNames(null);
+    Array.prototype.forEach.call(
+        document.querySelectorAll('#names-grid .player-select'),
+        function (sel) {
+            var cur = sel.value;
+            var html = '<option value="">— выбери игрока —</option>';
+            if (knownPlayersCache === null) {
+                html += '<option value="__loading__" disabled>Загрузка…</option>';
+            } else {
+                knownPlayersCache.forEach(function (n) {
+                    if (n === cur || taken.indexOf(n) === -1) {
+                        html += '<option value="' + escHtml(n) + '">' + escHtml(n) + '</option>';
+                    }
+                });
+            }
+            html += '<option value="__new__">➕ Новый игрок…</option>';
+            sel.innerHTML = html;
+            sel.value = cur;
+        });
+}
+
+function onPlayerSelectChange(sel) {
+    if (sel.value === '__new__') {
+        var wrap = sel.closest('.name-input-wrap');
+        var inp = document.createElement('input');
+        inp.type = 'text';
+        inp.className = 'player-input';
+        inp.placeholder = 'Имя нового игрока';
+        inp.oninput = renderPlayerSelectOptions;
+        wrap.insertBefore(inp, sel);
+        sel.remove();
+        inp.focus();
+    }
+    renderPlayerSelectOptions();
+}
+
+// Сбрасывает строки игроков к трём пустым дропбоксам (вызывается из newGame()).
+function resetPlayerRows() {
+    document.getElementById('names-grid').innerHTML = '';
+    addPlayerInput();
+    addPlayerInput();
+    addPlayerInput();
+}
+
+function addPlayerInput() {
     var grid = document.getElementById('names-grid');
     var idx = grid.children.length;
     var wrap = document.createElement('div');
     wrap.className = 'name-input-wrap';
-    var inp = document.createElement('input');
-    inp.type = 'text';
-    inp.placeholder = 'Имя игрока ' + (idx + 1);
-    inp.value = name;
-    inp.oninput = updatePlayerCount;
+    if (playersLoadFailed) {
+        var inp = document.createElement('input');
+        inp.type = 'text';
+        inp.className = 'player-input';
+        inp.placeholder = 'Имя игрока ' + (idx + 1);
+        inp.oninput = renderPlayerSelectOptions;
+        wrap.appendChild(inp);
+    } else {
+        var sel = document.createElement('select');
+        sel.className = 'player-select';
+        sel.onchange = function () { onPlayerSelectChange(sel); };
+        wrap.appendChild(sel);
+    }
     var btn = document.createElement('button');
     btn.className = 'remove-btn';
     btn.textContent = '✕';
-    btn.onclick = function () { wrap.remove(); updatePlayerCount(); };
-    wrap.appendChild(inp);
+    btn.onclick = function () { wrap.remove(); updatePlayerCount(); renderPlayerSelectOptions(); };
     wrap.appendChild(btn);
     grid.appendChild(wrap);
+    renderPlayerSelectOptions();
     updatePlayerCount();
-    if (!name) setTimeout(function () { inp.focus(); }, 50);
 }
 
 function updatePlayerCount() {
     document.getElementById('player-count-badge').textContent =
-        document.getElementById('names-grid').querySelectorAll('input').length;
+        document.getElementById('names-grid').children.length;
 }
 
 function setGameMode(mode) {
@@ -115,11 +214,16 @@ function updatePayoutPreview() {
 }
 
 function startGame() {
-    var names = Array.from(document.getElementById('names-grid').querySelectorAll('input'))
-        .map(function (i) { return i.value.trim(); }).filter(Boolean);
+    var names = Array.from(document.getElementById('names-grid').children)
+        .map(function (wrap) {
+            var sel = wrap.querySelector('.player-select');
+            var inp = wrap.querySelector('.player-input');
+            var v = sel ? sel.value : (inp ? inp.value.trim() : '');
+            return v === '__new__' ? '' : v;
+        })
+        .filter(Boolean);
     var chipsPerPlayer = parseInt(document.getElementById('chips-per-player').value) || 100;
     var gameName = document.getElementById('game-name').value.trim();
-    localStorage.setItem(PLAYERS_KEY, JSON.stringify(names));
     if (names.length < 2) { showAlert('Добавьте хотя бы 2 игроков!'); return; }
     if (new Set(names).size !== names.length) { showAlert('Имена должны быть уникальными!'); return; }
     state.gameName = gameName || ('Игра ' + formatDate(new Date()));

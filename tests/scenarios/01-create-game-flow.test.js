@@ -5,16 +5,24 @@ const { get, del } = require('../helpers/seed');
 const { assertEqual, assertTrue, it, tally } = require('../helpers/assert');
 
 async function fillNames(page, names) {
-    await page.waitForSelector('#names-grid input');
-    // top up / trim the default 3 inputs to exactly `names.length`
+    await page.waitForSelector('#names-grid .name-input-wrap');
+    // top up / trim the default 3 rows to exactly `names.length`
     await page.evaluate((count) => {
         const grid = document.getElementById('names-grid');
         while (grid.children.length < count) addPlayerInput();
         while (grid.children.length > count) grid.lastChild.remove();
     }, names.length);
     await page.evaluate((names) => {
-        const inputs = document.querySelectorAll('#names-grid input');
-        names.forEach((n, i) => { inputs[i].value = n; });
+        const wraps = document.querySelectorAll('#names-grid .name-input-wrap');
+        names.forEach((n, i) => {
+            const sel = wraps[i].querySelector('.player-select');
+            if (sel) {
+                sel.value = '__new__';
+                onPlayerSelectChange(sel);
+            }
+            const inp = wraps[i].querySelector('.player-input');
+            inp.value = n;
+        });
     }, names);
 }
 

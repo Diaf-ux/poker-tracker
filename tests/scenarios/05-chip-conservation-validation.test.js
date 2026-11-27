@@ -6,16 +6,23 @@ const { get, del } = require('../helpers/seed');
 const { assertTrue, it, tally } = require('../helpers/assert');
 
 async function fillTwoNames(page, n1, n2) {
-    await page.waitForSelector('#names-grid input');
+    await page.waitForSelector('#names-grid .name-input-wrap');
     await page.evaluate((count) => {
         const grid = document.getElementById('names-grid');
         while (grid.children.length < count) addPlayerInput();
         while (grid.children.length > count) grid.lastChild.remove();
     }, 2);
     await page.evaluate(([n1, n2]) => {
-        const inputs = document.querySelectorAll('#names-grid input');
-        inputs[0].value = n1;
-        inputs[1].value = n2;
+        const wraps = document.querySelectorAll('#names-grid .name-input-wrap');
+        [n1, n2].forEach((n, i) => {
+            const sel = wraps[i].querySelector('.player-select');
+            if (sel) {
+                sel.value = '__new__';
+                onPlayerSelectChange(sel);
+            }
+            const inp = wraps[i].querySelector('.player-input');
+            inp.value = n;
+        });
     }, [n1, n2]);
 }
 

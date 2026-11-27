@@ -12,6 +12,7 @@ const scenarios = [
     './scenarios/06-auto-close-on-settle.test.js',
     './scenarios/07-linked-game-groups.test.js',
     './scenarios/08-temporary-settle-gates.test.js',
+    './scenarios/09-player-dropdown.test.js',
 ];
 
 (async () => {
