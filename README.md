@@ -5,8 +5,8 @@ with friends. Runs as a Telegram Mini App (via `telegram-web-app.js`), and works
 browser page too. No account system beyond a single shared password.
 
 Supports two modes:
-- **Кэш (Cash)** — live per-player chip tracking during the game, with rebuys, converted to ₽ at a
-  configurable chips-per-rub rate.
+- **Кэш (Cash)** — live per-player chip tracking during the game, with rebuys, converted to ₽ via
+  the per-player Buy-in over the Initial stack (1 chip = Buy-in / Initial stack ₽).
 - **Турнир (Tournament)** — fixed buy-in, optional payout split between 1st place (winner-takes-all
   or top-2), and an optional blind-level timer with an auto-generated blind schedule.
 

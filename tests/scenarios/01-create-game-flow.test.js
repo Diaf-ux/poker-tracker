@@ -42,7 +42,7 @@ async function run() {
             const gameName = 'QA_cash_named_' + Date.now();
             await fillNames(page, ['QA_C1', 'QA_C2', 'QA_C3']);
             await page.evaluate((name) => { document.getElementById('game-name').value = name; }, gameName);
-            await page.evaluate(() => { document.getElementById('chips-per-rub').value = '1'; });
+            await page.evaluate(() => { document.getElementById('cash-buy-in').value = '500'; });
             await page.evaluate(() => startGame());
             await page.waitForSelector('#page-game.active', { timeout: 5000 });
 
@@ -128,6 +128,40 @@ async function run() {
             assertEqual(byName['QA_T2'], 1500, 'QA_T2 (winner, pool 2000 - buyIn 500) diff_rub');
             assertEqual(byName['QA_T3'], -500, 'QA_T3 (non-winner) diff_rub');
             assertEqual(byName['QA_T4'], -500, 'QA_T4 (non-winner) diff_rub');
+        }));
+
+        // --- 1d: cash game, Initial stack 500 + Buy-in 100 -> 5 chips = 1 rub ---
+        results.push(await it('cash buy-in recalculates chip-to-rub at a fractional rate', async () => {
+            await page.evaluate(() => switchTab('tab-setup', document.querySelectorAll('.nav-tab')[0]));
+            await page.evaluate(() => setGameMode('cash'));
+            await fillNames(page, ['QA_R1', 'QA_R2']);
+            const gameName = 'QA_cash_rate_' + Date.now();
+            await page.evaluate((name) => { document.getElementById('game-name').value = name; }, gameName);
+            await page.evaluate(() => {
+                document.getElementById('chips-per-player').value = '500';
+                document.getElementById('cash-buy-in').value = '100';
+            });
+            await page.evaluate(() => startGame());
+            await page.waitForSelector('#page-game.active', { timeout: 5000 });
+            await page.evaluate(() => showFinalScreen());
+            await page.waitForSelector('#final-input-section');
+            await page.evaluate(() => {
+                document.getElementById('final-0').value = '600'; // +100 chips vs start 500
+                document.getElementById('final-1').value = '400'; // -100 chips
+            });
+            await page.evaluate(() => calculateResults());
+            await page.waitForSelector('#results-section', { timeout: 5000 });
+            await page.evaluate(() => saveAndNewGame());
+            await page.waitForFunction(() => document.getElementById('page-setup').classList.contains('active'), { timeout: 8000 });
+
+            const gameRows = await get('games?name=eq.' + encodeURIComponent(gameName) + '&select=id,chips_per_rub');
+            assertTrue(gameRows.length === 1, 'saved game row not found');
+            createdGameIds.push(gameRows[0].id);
+            assertEqual(gameRows[0].chips_per_rub, 5, 'derived rate 500 chips / 100 rub = 5');
+            const players = await get('game_players?game_id=eq.' + gameRows[0].id + '&select=name,diff_rub&order=name');
+            const byName = Object.fromEntries(players.map((p) => [p.name, p.diff_rub]));
+            assertEqual(byName['QA_R1'], 20, 'QA_R1 +100 chips = +20 rub');
+            assertEqual(byName['QA_R2'], -20, 'QA_R2 -100 chips = -20 rub');
         }));
     } finally {
         if (createdGameIds.length) {

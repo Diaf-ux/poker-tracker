@@ -228,7 +228,7 @@ function startGame() {
     if (new Set(names).size !== names.length) { showAlert('Имена должны быть уникальными!'); return; }
     state.gameName = gameName || ('Игра ' + formatDate(new Date()));
     if (state.mode === 'tournament') {
-        state.buyIn = parseFloat(document.getElementById('buy-in').value) || 500;
+        state.buyIn = parseFloat(document.getElementById('buy-in').value) || 200;
         state.payoutScheme = getPayoutScheme();
         var p2el = document.getElementById('place2-prize');
         state.place2Prize = state.payoutScheme === 'top2'
@@ -236,7 +236,9 @@ function startGame() {
             : 0;
         state.chipsPerRub = 1;
     } else {
-        state.chipsPerRub = parseFloat(document.getElementById('chips-per-rub').value) || 10;
+        var cashBuyIn = parseFloat(document.getElementById('cash-buy-in').value);
+        if (!(cashBuyIn > 0)) cashBuyIn = 100;
+        state.chipsPerRub = chipsPerPlayer / cashBuyIn;
         state.buyIn = 0;
     }
     state.players = names.map(function (name) {
