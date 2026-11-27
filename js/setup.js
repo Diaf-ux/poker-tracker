@@ -5,6 +5,43 @@ var state = {
 var knownPlayersCache = null; // null = список из БД ещё не загружен
 var playersLoadFailed = false;
 
+// Аддитивная римская запись: 95 -> LXXXXV, 99 -> LXXXXVIIII, 100 -> C
+function toRoman(num) {
+    var table = [[1000, 'M'], [500, 'D'], [100, 'C'], [50, 'L'], [10, 'X'], [5, 'V'], [1, 'I']];
+    var out = '';
+    table.forEach(function (pair) {
+        while (num >= pair[0]) { out += pair[1]; num -= pair[0]; }
+    });
+    return out;
+}
+
+// Счётчик вечера из поля (дефолт 95), без автоинкремента.
+function getEveningCounter() {
+    var n = parseInt(document.getElementById('evening-counter').value, 10);
+    return n > 0 ? n : 95;
+}
+
+function autoEveningName() {
+    return 'Покерный вечер ' + toRoman(getEveningCounter());
+}
+
+function onEveningCounterChange() {
+    var el = document.getElementById('evening-counter');
+    var n = parseInt(el.value, 10);
+    if (!(n > 0)) { n = 95; el.value = 95; }
+    localStorage.setItem(EVENING_COUNTER_KEY, String(n));
+    if (document.getElementById('auto-number').checked) {
+        document.getElementById('game-name').value = autoEveningName();
+    }
+}
+
+function toggleAutoNumbering() {
+    var on = document.getElementById('auto-number').checked;
+    var nameInput = document.getElementById('game-name');
+    nameInput.readOnly = on;
+    if (on) nameInput.value = autoEveningName();
+}
+
 function checkPassword() {
     var val = document.getElementById('auth-input').value;
     if (val === APP_PASSWORD) {
@@ -31,6 +68,12 @@ function initApp() {
 }
 
 function initSetup() {
+    var saved = localStorage.getItem(EVENING_COUNTER_KEY);
+    if (saved !== null) {
+        var counterEl = document.getElementById('evening-counter');
+        var n = parseInt(saved, 10);
+        if (counterEl && n > 0) counterEl.value = n;
+    }
     if (document.getElementById('names-grid').children.length === 0) {
         addPlayerInput();
         addPlayerInput();
@@ -223,7 +266,9 @@ function startGame() {
         })
         .filter(Boolean);
     var chipsPerPlayer = parseInt(document.getElementById('chips-per-player').value) || 100;
-    var gameName = document.getElementById('game-name').value.trim();
+    var gameName = document.getElementById('auto-number').checked
+        ? autoEveningName()
+        : document.getElementById('game-name').value.trim();
     if (names.length < 2) { showAlert('Добавьте хотя бы 2 игроков!'); return; }
     if (new Set(names).size !== names.length) { showAlert('Имена должны быть уникальными!'); return; }
     state.gameName = gameName || ('Игра ' + formatDate(new Date()));

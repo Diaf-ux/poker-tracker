@@ -3,6 +3,7 @@ var SUPABASE_KEY = "local-dev";
 
 var APP_PASSWORD = "2769allin";
 var AUTH_KEY = "pokerauthv1";
+var EVENING_COUNTER_KEY = "pokereveningcounterv1";
 
 console.log(`Local config used, SUPABASE_URL=${SUPABASE_URL}`);
 

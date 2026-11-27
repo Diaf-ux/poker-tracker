@@ -863,6 +863,38 @@ input:focus {
     background: var(--green-light);
 }
 
+/* ── iOS-style violet toggle (auto-numbering) ── */
+
+.toggle-switch.ios-toggle {
+    width: 51px;
+    height: 31px;
+}
+
+.ios-toggle .toggle-slider {
+    background: #e9e9ea;
+    border: none;
+    border-radius: 31px;
+}
+
+.ios-toggle .toggle-slider:before {
+    width: 27px;
+    height: 27px;
+    left: 2px;
+    top: 2px;
+    background: #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+}
+
+.ios-toggle input:checked+.toggle-slider {
+    background: #af52de;
+    border-color: #af52de;
+}
+
+.ios-toggle input:checked+.toggle-slider:before {
+    transform: translateX(20px);
+    background: #fff;
+}
+
 .level-duration-btns {
     display: flex;
     gap: 6px;

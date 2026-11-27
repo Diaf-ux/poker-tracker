@@ -13,6 +13,7 @@ const scenarios = [
     './scenarios/07-linked-game-groups.test.js',
     './scenarios/08-temporary-settle-gates.test.js',
     './scenarios/09-player-dropdown.test.js',
+    './scenarios/10-auto-numbering.test.js',
 ];
 
 (async () => {
